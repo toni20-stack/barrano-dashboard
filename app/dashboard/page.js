@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { TrendingUp, DollarSign, ShoppingCart, Percent, RefreshCw } from 'lucide-react'
+import { TrendingUp, DollarSign, ShoppingCart, Percent, RefreshCw, X, ChevronDown } from 'lucide-react'
 import AppLayout from '../../components/AppLayout'
 import Topbar from '../../components/Topbar'
 import { KPICard } from '../../components/ui'
@@ -10,10 +10,69 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 
 const B = '#1C1C1A'; const BEIGE = '#C4A882'; const CREAM = '#F5F0E8'; const BORDER = '#E8E0D4'
 
+function TopProdusePanou({ produse, vanzari, dateFrom, dateTo, onClose }) {
+  const filtered = filterByDateRange(vanzari, 'data', dateFrom, dateTo).filter(v=>!v.isStorno)
+  const totalVenit = filtered.reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0)
+  const stats = produse.map(p=>{
+    const vs = filtered.filter(v=>v.produsId===p.id)
+    const venit = vs.reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0)
+    const profit = vs.reduce((s,v)=>s+calcVanzareProfit(v,produse).profit,0)
+    const qty = vs.reduce((s,v)=>s+Number(v.cantitate),0)
+    const marja = venit>0?(profit/venit)*100:0
+    return {name:p.numeBarrano, venit, profit, qty, marja}
+  }).filter(p=>p.qty>0).sort((a,b)=>b.venit-a.venit)
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(28,28,26,0.5)',backdropFilter:'blur(4px)',zIndex:999,display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={onClose}>
+      <div style={{background:'#fff',borderRadius:20,border:'1px solid #E8E0D4',width:'100%',maxWidth:700,maxHeight:'85vh',overflow:'hidden',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:'20px 24px',borderBottom:'1px solid #F0EAE0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div>
+            <h2 style={{fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:20,fontWeight:500,color:B,margin:0}}>Top produse după venit</h2>
+            <p style={{fontSize:11,color:BEIGE,margin:'3px 0 0'}}>{stats.length} produse · total {new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:0}).format(totalVenit)}</p>
+          </div>
+          <button onClick={onClose} style={{border:'none',background:'#F5F0E8',borderRadius:8,padding:8,cursor:'pointer',display:'flex'}}><X size={16} color={B}/></button>
+        </div>
+        <div style={{overflowY:'auto',flex:1}}>
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead style={{background:'#FAFAF8',position:'sticky',top:0}}>
+              <tr>
+                {['#','Produs','Cant.','Venit','Profit','Marjă','% din total'].map(h=>(
+                  <th key={h} style={{padding:'10px 16px',textAlign:h==='Produs'?'left':'right',fontSize:10,fontWeight:600,color:BEIGE,textTransform:'uppercase',letterSpacing:'0.08em',borderBottom:'1px solid #F0EAE0'}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {stats.map((p,i)=>{
+                const cota = totalVenit>0?(p.venit/totalVenit)*100:0
+                return (
+                  <tr key={i} style={{borderBottom:'1px solid #F5F0E8'}}>
+                    <td style={{padding:'12px 16px',fontSize:11,color:BEIGE,fontWeight:600}}>{i+1}</td>
+                    <td style={{padding:'12px 16px',fontSize:12,fontWeight:500,color:B}}>{p.name}</td>
+                    <td style={{padding:'12px 16px',fontSize:12,color:B,textAlign:'right'}}>{p.qty} buc</td>
+                    <td style={{padding:'12px 16px',fontSize:12,fontWeight:600,color:B,textAlign:'right',fontVariantNumeric:'tabular-nums'}}>{new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:2}).format(p.venit)}</td>
+                    <td style={{padding:'12px 16px',fontSize:12,fontWeight:600,textAlign:'right',color:p.profit>=0?'#16a34a':'#dc2626',fontVariantNumeric:'tabular-nums'}}>{new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:2}).format(p.profit)}</td>
+                    <td style={{padding:'12px 16px',fontSize:12,fontWeight:600,textAlign:'right',color:p.marja>=20?'#16a34a':p.marja>=10?'#d97706':'#dc2626'}}>{p.marja.toFixed(1)}%</td>
+                    <td style={{padding:'12px 16px',textAlign:'right'}}>
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',gap:6}}>
+                        <div style={{width:60,height:4,background:'#F5F0E8',borderRadius:99,overflow:'hidden'}}><div style={{height:'100%',background:BEIGE,borderRadius:99,width:}}/></div>
+                        <span style={{fontSize:11,color:BEIGE,minWidth:32,textAlign:'right'}}>{cota.toFixed(0)}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function DashboardPage() {
   const [produse, setProduse] = useState([])
   const [vanzari, setVanzari] = useState([])
   const [cheltuieli, setCheltuieli] = useState([])
+  const [showTop, setShowTop] = useState(false)
   const [dateFrom, setDateFrom] = useState('2025-01-01')
   const [dateTo, setDateTo] = useState(new Date().toISOString().slice(0,10))
 
@@ -113,7 +172,7 @@ export default function DashboardPage() {
 
           {/* Top produse */}
           <div className="card" style={{padding:24}}>
-            <p style={{fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:17,fontWeight:500,color:B,margin:'0 0 20px'}}>Top produse după venit</p>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}><p style={{fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:17,fontWeight:500,color:B,margin:0}}>Top produse după venit</p><button onClick={()=>setShowTop(true)} style={{fontSize:11,fontWeight:500,color:BEIGE,background:'none',border:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:4,padding:0}}>Vezi tot <ChevronDown size={12}/></button></div>
             {topProduse.length === 0 ? <p style={{color:BEIGE,fontSize:12,textAlign:'center',padding:'40px 0'}}>Fără date în perioada selectată</p> : (
               <div style={{display:'flex',flexDirection:'column',gap:14}}>
                 {topProduse.map((p,i)=>{
@@ -122,7 +181,7 @@ export default function DashboardPage() {
                   return (
                     <div key={i}>
                       <div style={{display:'flex',justifyContent:'space-between',marginBottom:5,fontSize:12}}>
-                        <span style={{color:B,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{p.name}</span>
+                        <a href="/analiza" style={{color:'var(--b-black)',fontWeight:500,textDecoration:'none',fontSize:12,cursor:'pointer'}} title={p.name}>{p.name.length>35?p.name.slice(0,35)+'…':p.name}</a>
                         <div style={{display:'flex',gap:14,flexShrink:0}}>
                           <span style={{color:BEIGE}}>{p.qty} buc</span>
                           <span style={{color:B,fontWeight:600}}>{formatRon(p.venit)}</span>
@@ -157,6 +216,7 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
       </div>
+      {showTop     </AppLayout>    </AppLayout> <TopProdusePanou produse={produse} vanzari={vanzari} dateFrom={dateFrom} dateTo={dateTo} onClose={()=>setShowTop(false)}/>}
     </AppLayout>
   )
 }
