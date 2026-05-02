@@ -53,7 +53,7 @@ function TopProdusePanou({ produse, vanzari, dateFrom, dateTo, onClose }) {
                     <td style={{padding:'12px 16px',fontSize:12,fontWeight:600,textAlign:'right',color:p.marja>=20?'#16a34a':p.marja>=10?'#d97706':'#dc2626'}}>{p.marja.toFixed(1)}%</td>
                     <td style={{padding:'12px 16px',textAlign:'right'}}>
                       <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',gap:6}}>
-                        <div style={{width:60,height:4,background:'#F5F0E8',borderRadius:99,overflow:'hidden'}}><div style={{height:'100%',background:BEIGE,borderRadius:99,width:}}/></div>
+                        <div style={{width:60,height:4,background:'#F5F0E8',borderRadius:99,overflow:'hidden'}}><div style={{height:'100%',background:BEIGE,borderRadius:99,width:`${cota}%`}}/></div>
                         <span style={{fontSize:11,color:BEIGE,minWidth:32,textAlign:'right'}}>{cota.toFixed(0)}%</span>
                       </div>
                     </td>
