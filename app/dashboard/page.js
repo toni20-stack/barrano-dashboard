@@ -116,11 +116,29 @@ export default function DashboardPage() {
     {tara:'BG', flag:'🇧🇬', label:'eMAG Bulgaria', fill:BEIGE},
     {tara:'HU', flag:'🇭🇺', label:'eMAG Ungaria', fill:'#8B7355'},
   ]
+  // Calculăm vânzările per piață pentru distribuție proporțională cheltuieli
+  const venitPerTara = tari.reduce((acc, t) => {
+    const v = filteredV.filter(v=>v.canal==='emag'&&(t.tara==='RO'?(!v.tara||v.tara==='RO'):v.tara===t.tara))
+    acc[t.tara] = v.reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0)
+    return acc
+  }, {})
+  const totalVenitEmag = Object.values(venitPerTara).reduce((s,v)=>s+v,0)
+  // Cheltuieli cu tara setată explicit (ex: FTIC cross-border)
+  const cheltCuTara = filteredC.filter(c => c.tara && c.tara !== '')
+  // Cheltuieli fără tara → distribuim proporțional cu vânzările
+  const cheltFaraTara = filteredC.filter(c => !c.tara || c.tara === '')
+  const totalCheltFaraTara = cheltFaraTara.reduce((s,c)=>s+Number(c.suma),0)
+
   const profitPerTara = tari.map(t => {
     const vanzariTara = filteredV.filter(v=>v.canal==='emag'&&(t.tara==='RO'?(!v.tara||v.tara==='RO'):v.tara===t.tara))
     const venit = vanzariTara.reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0)
     const profitVanzari = vanzariTara.reduce((s,v)=>s+calcVanzareProfit(v,produse).profit,0)
-    const chelt = filteredC.filter(c=>c.tara===t.tara||(!c.tara&&t.tara==='RO')).reduce((s,c)=>s+Number(c.suma),0)
+    // Cheltuieli specifice acestei țări
+    const cheltSpecifice = cheltCuTara.filter(c=>c.tara===t.tara).reduce((s,c)=>s+Number(c.suma),0)
+    // Cheltuieli comune distribuite proporțional cu vânzările
+    const proportie = totalVenitEmag > 0 ? venitPerTara[t.tara] / totalVenitEmag : (t.tara==='RO'?1:0)
+    const cheltProp = totalCheltFaraTara * proportie
+    const chelt = cheltSpecifice + cheltProp
     const profitNet = profitVanzari - chelt
     return {...t, venit, profitVanzari, chelt, profitNet}
   })
