@@ -51,7 +51,7 @@ function parseSmartBill(buf) {
   const normale=[], storno=[]
   rows.forEach((row,i)=>{
     const produs=String(row[idx.produs]||'').trim()
-    if (!produs||produs.toLowerCase().includes('taxe de livrare')||produs.toLowerCase().includes('transport')) return
+    const produsLow=produs.toLowerCase(); const deIgnorat=['taxe de livrare','transport','discount conform','reducere conform','vásárlási','отстъпка','ваучер:','баучер:','voucher:','vaucer:','card cadou','gift card','total']; if(deIgnorat.some(x=>produsLow.includes(x))) return
     const tip=String(row[idx.tipDoc]||'').toLowerCase()
     const obj={
       _id:`sb_${i}`, produs, cod:String(row[idx.cod]||'').trim(),
