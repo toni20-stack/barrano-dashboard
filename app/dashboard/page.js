@@ -1,17 +1,14 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { TrendingUp, DollarSign, ShoppingCart, Percent, Package, RefreshCw } from 'lucide-react'
+import { TrendingUp, DollarSign, ShoppingCart, Percent, RefreshCw } from 'lucide-react'
 import AppLayout from '../../components/AppLayout'
 import Topbar from '../../components/Topbar'
 import { KPICard } from '../../components/ui'
-import { getProduse, getVanzari, getCheltuieli, initStorage, resetStorage } from '../../lib/storage'
+import { getProduse, getVanzari, getCheltuieli, initStorage, resetStorage, clearAllData } from '../../lib/storage'
 import { calcVanzareProfit, formatRon, formatPct, filterByDateRange } from '../../lib/calculations'
-import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell
-} from 'recharts'
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
-const CANAL_COLORS = { emag: '#3b82f6', site: '#10b981', altele: '#64748b' }
+const B = '#1C1C1A'; const BEIGE = '#C4A882'; const CREAM = '#F5F0E8'; const BORDER = '#E8E0D4'
 
 export default function DashboardPage() {
   const [produse, setProduse] = useState([])
@@ -20,143 +17,120 @@ export default function DashboardPage() {
   const [dateFrom, setDateFrom] = useState('2025-01-01')
   const [dateTo, setDateTo] = useState(new Date().toISOString().slice(0,10))
 
-  const load = useCallback(() => {
-    initStorage()
-    setProduse(getProduse())
-    setVanzari(getVanzari())
-    setCheltuieli(getCheltuieli())
-  }, [])
+  const load = useCallback(() => { initStorage(); setProduse(getProduse()); setVanzari(getVanzari()); setCheltuieli(getCheltuieli()) }, [])
   useEffect(() => { load() }, [load])
 
   const filteredV = filterByDateRange(vanzari, 'data', dateFrom, dateTo)
   const filteredC = filterByDateRange(cheltuieli, 'data', dateFrom, dateTo)
 
-  // KPIs
-  const totalVenit = filteredV.reduce((s, v) => s + calcVanzareProfit(v, produse).venit, 0)
-  const totalProfit = filteredV.reduce((s, v) => s + calcVanzareProfit(v, produse).profit, 0)
-  const totalCheltuieli = filteredC.reduce((s, c) => s + Number(c.suma), 0)
-  const profitNet = totalProfit - totalCheltuieli
-  const marjaGlobala = totalVenit > 0 ? (totalProfit / totalVenit) * 100 : 0
+  const totalVenit = filteredV.reduce((s,v) => s + calcVanzareProfit(v,produse).venit, 0)
+  const totalProfit = filteredV.reduce((s,v) => s + calcVanzareProfit(v,produse).profit, 0)
+  const totalChelt = filteredC.reduce((s,c) => s + Number(c.suma), 0)
+  const profitNet = totalProfit - totalChelt
+  const marjaGlobala = totalVenit > 0 ? (totalProfit/totalVenit)*100 : 0
 
-  // Vânzări per lună (linie)
   const luniMap = {}
   filteredV.forEach(v => {
-    const luna = v.data.slice(0, 7)
-    if (!luniMap[luna]) luniMap[luna] = { luna, venit: 0, profit: 0, cheltuieli: 0 }
-    const calc = calcVanzareProfit(v, produse)
-    luniMap[luna].venit += calc.venit
-    luniMap[luna].profit += calc.profit
+    const l = v.data.slice(0,7)
+    if (!luniMap[l]) luniMap[l] = { luna:l, venit:0, profit:0, cheltuieli:0 }
+    const c = calcVanzareProfit(v, produse)
+    luniMap[l].venit += c.venit; luniMap[l].profit += c.profit
   })
-  filteredC.forEach(c => {
-    const luna = c.data.slice(0, 7)
-    if (!luniMap[luna]) luniMap[luna] = { luna, venit: 0, profit: 0, cheltuieli: 0 }
-    luniMap[luna].cheltuieli += Number(c.suma)
-  })
-  const luniData = Object.values(luniMap).sort((a, b) => a.luna.localeCompare(b.luna)).map(d => ({
+  filteredC.forEach(c => { const l = c.data.slice(0,7); if (!luniMap[l]) luniMap[l]={luna:l,venit:0,profit:0,cheltuieli:0}; luniMap[l].cheltuieli += Number(c.suma) })
+  const luniData = Object.values(luniMap).sort((a,b) => a.luna.localeCompare(b.luna)).map(d => ({
     ...d,
-    lunaLabel: new Date(d.luna + '-01').toLocaleDateString('ro-RO', { month: 'short', year: '2-digit' }),
+    lunaLabel: new Date(d.luna+'-01').toLocaleDateString('ro-RO',{month:'short',year:'2-digit'}),
     profitNet: d.profit - d.cheltuieli,
   }))
 
-  // Canal distribution
-  const canalData = ['emag', 'site', 'altele'].map(canal => ({
-    name: canal === 'emag' ? 'eMAG' : canal === 'site' ? 'Site' : 'Altele',
-    venit: filteredV.filter(v => v.canal === canal).reduce((s, v) => s + calcVanzareProfit(v, produse).venit, 0),
-    fill: CANAL_COLORS[canal]
-  })).filter(d => d.venit > 0)
+  const canalData = ['emag','site','altele'].map(canal => ({
+    name: canal==='emag'?'eMAG':canal==='site'?'Site':'Altele',
+    venit: filteredV.filter(v=>v.canal===canal).reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0),
+  })).filter(d=>d.venit>0)
 
-  // Top produse
-  const produsMap = {}
-  filteredV.forEach(v => {
-    if (!produsMap[v.produsId]) produsMap[v.produsId] = { venit: 0, profit: 0, qty: 0 }
-    const calc = calcVanzareProfit(v, produse)
-    produsMap[v.produsId].venit += calc.venit
-    produsMap[v.produsId].profit += calc.profit
-    produsMap[v.produsId].qty += Number(v.cantitate)
-  })
-  const topProduse = Object.entries(produsMap)
-    .map(([id, d]) => ({ ...d, name: produse.find(p => p.id === id)?.numeBarrano || id }))
-    .sort((a, b) => b.venit - a.venit)
-    .slice(0, 5)
+  const topProduse = Object.entries(filteredV.reduce((acc,v) => {
+    if (!acc[v.produsId]) acc[v.produsId]={venit:0,profit:0,qty:0}
+    const c = calcVanzareProfit(v,produse)
+    acc[v.produsId].venit+=c.venit; acc[v.produsId].profit+=c.profit; acc[v.produsId].qty+=Number(v.cantitate)
+    return acc
+  },{})).map(([id,d]) => ({...d, name:produse.find(p=>p.id===id)?.numeBarrano||id})).sort((a,b)=>b.venit-a.venit).slice(0,5)
+
+  const ttSt = { fontSize:11, color:BEIGE, fontWeight:500, borderRadius:10, border:`1px solid ${BORDER}`, padding:'8px 12px', background:'#FDFBF7' }
 
   return (
     <AppLayout>
-      <Topbar
-        title="Dashboard"
-        subtitle="Vizualizare globală a performanței"
-        dateFrom={dateFrom} dateTo={dateTo}
-        onDateFrom={setDateFrom} onDateTo={setDateTo}
-      >
-        <button className="btn-secondary text-xs" onClick={() => { resetStorage(); load() }}>
-          <RefreshCw size={13} /> Reset date demo
-        </button>
+      <Topbar title="Dashboard" subtitle="Vizualizare globală a performanței" dateFrom={dateFrom} dateTo={dateTo} onDateFrom={setDateFrom} onDateTo={setDateTo}>
+        <button className="btn-secondary" style={{fontSize:12,color:"#dc2626",borderColor:"#fecaca"}} onClick={()=>{ if(window.confirm("Ești sigur? Toate datele vor fi șterse definitiv. Această acțiune nu poate fi anulată.")) { clearAllData(); load(); } }}><RefreshCw size={13}/> Șterge toate datele</button>
       </Topbar>
 
-      <div className="p-6 space-y-6">
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-          <KPICard label="Venit brut" value={formatRon(totalVenit)} icon={DollarSign} color="blue" sub={`${filteredV.length} tranzacții`} />
-          <KPICard label="Profit din vânzări" value={formatRon(totalProfit)} icon={TrendingUp} color="green" />
-          <KPICard label="Cheltuieli totale" value={formatRon(totalCheltuieli)} icon={ShoppingCart} color="orange" sub={`${filteredC.length} înregistrări`} />
-          <KPICard label="Profit net final" value={formatRon(profitNet)} icon={Percent} color={profitNet >= 0 ? 'green' : 'red'} sub={`Marjă ${marjaGlobala.toFixed(1)}%`} />
+      <div style={{padding:'24px 28px', display:'flex', flexDirection:'column', gap:20}}>
+        {/* KPIs */}
+        <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14}}>
+          <KPICard label="Venit brut" value={formatRon(totalVenit)} icon={DollarSign} color="beige" sub={`${filteredV.length} tranzacții`}/>
+          <KPICard label="Profit vânzări" value={formatRon(totalProfit)} icon={TrendingUp} color="green"/>
+          <KPICard label="Cheltuieli" value={formatRon(totalChelt)} icon={ShoppingCart} color="beige" sub={`${filteredC.length} înregistrări`}/>
+          <KPICard label="Profit net final" value={formatRon(profitNet)} icon={Percent} color={profitNet>=0?'green':'red'} sub={`Marjă ${marjaGlobala.toFixed(1)}%`}/>
         </div>
 
-        {/* Linie venit/profit/cheltuieli */}
-        <div className="card p-5">
-          <p className="text-sm font-bold text-slate-800 mb-4">Evoluție lunară — Venit, Profit din vânzări, Cheltuieli</p>
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={luniData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="lunaLabel" tick={{ fontSize: 11, fill: '#64748b' }} />
-              <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
-              <Tooltip formatter={(val) => formatRon(val)} labelStyle={{ fontWeight: 600 }} />
-              <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-              <Line type="monotone" dataKey="venit" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} name="Venit brut" />
-              <Line type="monotone" dataKey="profit" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4 }} name="Profit vânzări" />
-              <Line type="monotone" dataKey="cheltuieli" stroke="#f97316" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3 }} name="Cheltuieli" />
+        {/* Linie */}
+        <div className="card" style={{padding:24}}>
+          <p style={{fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:17,fontWeight:500,color:B,margin:'0 0 4px'}}>Evoluție lunară</p>
+          <p style={{fontSize:11,color:BEIGE,margin:'0 0 20px'}}>Venit, Profit din vânzări, Cheltuieli</p>
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={luniData} margin={{top:5,right:20,left:10,bottom:5}}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F0EAE0" vertical={false}/>
+              <XAxis dataKey="lunaLabel" tick={{fontSize:11,fill:BEIGE}} axisLine={false} tickLine={false}/>
+              <YAxis tick={{fontSize:10,fill:BEIGE}} tickFormatter={v=>`${(v/1000).toFixed(0)}k`} axisLine={false} tickLine={false}/>
+              <Tooltip formatter={v=>formatRon(v)} contentStyle={{fontSize:11,borderRadius:10,border:`1px solid ${BORDER}`,background:'#FDFBF7'}}/>
+              <Line type="monotone" dataKey="venit" stroke={B} strokeWidth={2} dot={false} name="Venit"/>
+              <Line type="monotone" dataKey="profit" stroke={BEIGE} strokeWidth={2} dot={false} name="Profit"/>
+              <Line type="monotone" dataKey="cheltuieli" stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="5 5" dot={false} name="Cheltuieli"/>
             </LineChart>
           </ResponsiveContainer>
+          <div style={{display:'flex',justifyContent:'center',gap:24,marginTop:12}}>
+            {[[B,'Venit'],[BEIGE,'Profit'],['#94a3b8','Cheltuieli']].map(([c,l])=>(
+              <div key={l} style={{display:'flex',alignItems:'center',gap:6}}><div style={{width:20,height:2,background:c,borderRadius:1}}/><span style={{fontSize:11,color:BEIGE}}>{l}</span></div>
+            ))}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
           {/* Canal bar */}
-          <div className="card p-5">
-            <p className="text-sm font-bold text-slate-800 mb-4">Venit per canal de vânzare</p>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={canalData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
-                <Tooltip formatter={(val) => formatRon(val)} />
-                <Bar dataKey="venit" name="Venit" radius={[6, 6, 0, 0]}>
-                  {canalData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+          <div className="card" style={{padding:24}}>
+            <p style={{fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:17,fontWeight:500,color:B,margin:'0 0 20px'}}>Venit per canal</p>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={canalData} margin={{top:5,right:10,left:0,bottom:5}}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F0EAE0" vertical={false}/>
+                <XAxis dataKey="name" tick={{fontSize:12,fill:BEIGE}} axisLine={false} tickLine={false}/>
+                <YAxis tick={{fontSize:10,fill:BEIGE}} tickFormatter={v=>`${(v/1000).toFixed(0)}k`} axisLine={false} tickLine={false}/>
+                <Tooltip formatter={v=>formatRon(v)} contentStyle={{fontSize:11,borderRadius:10,border:`1px solid ${BORDER}`}}/>
+                <Bar dataKey="venit" radius={[6,6,0,0]}>
+                  {canalData.map((_,i)=><Cell key={i} fill={i===0?B:i===1?BEIGE:'#C8C2B8'}/>)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
 
           {/* Top produse */}
-          <div className="card p-5">
-            <p className="text-sm font-bold text-slate-800 mb-4">Top produse după venit</p>
-            {topProduse.length === 0 ? (
-              <div className="flex items-center justify-center h-40 text-slate-400 text-sm">Fără date în perioada selectată</div>
-            ) : (
-              <div className="space-y-3">
-                {topProduse.map((p, i) => {
-                  const pct = totalVenit > 0 ? (p.venit / totalVenit) * 100 : 0
-                  const marja = p.venit > 0 ? (p.profit / p.venit) * 100 : 0
+          <div className="card" style={{padding:24}}>
+            <p style={{fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:17,fontWeight:500,color:B,margin:'0 0 20px'}}>Top produse după venit</p>
+            {topProduse.length === 0 ? <p style={{color:BEIGE,fontSize:12,textAlign:'center',padding:'40px 0'}}>Fără date în perioada selectată</p> : (
+              <div style={{display:'flex',flexDirection:'column',gap:14}}>
+                {topProduse.map((p,i)=>{
+                  const pct = totalVenit>0?(p.venit/totalVenit)*100:0
+                  const marja = p.venit>0?(p.profit/p.venit)*100:0
                   return (
                     <div key={i}>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="font-medium text-slate-700 truncate max-w-[200px]">{p.name}</span>
-                        <div className="flex gap-3">
-                          <span className="text-slate-500">{p.qty} buc</span>
-                          <span className="font-semibold text-slate-900">{formatRon(p.venit)}</span>
-                          <span className={`font-semibold ${marja >= 20 ? 'text-emerald-600' : marja >= 10 ? 'text-amber-500' : 'text-red-500'}`}>{marja.toFixed(0)}%</span>
+                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:5,fontSize:12}}>
+                        <span style={{color:B,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{p.name}</span>
+                        <div style={{display:'flex',gap:14,flexShrink:0}}>
+                          <span style={{color:BEIGE}}>{p.qty} buc</span>
+                          <span style={{color:B,fontWeight:600}}>{formatRon(p.venit)}</span>
+                          <span style={{color:marja>=20?'#16a34a':marja>=10?'#d97706':'#dc2626',fontWeight:600}}>{marja.toFixed(0)}%</span>
                         </div>
                       </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-orange-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                      <div style={{height:3,background:CREAM,borderRadius:99,overflow:'hidden'}}>
+                        <div style={{height:'100%',background:i===0?B:BEIGE,borderRadius:99,width:`${pct}%`}}/>
                       </div>
                     </div>
                   )
@@ -166,19 +140,18 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Profit net bar per luna */}
-        <div className="card p-5">
-          <p className="text-sm font-bold text-slate-800 mb-4">Profit net per lună (după deducerea cheltuielilor)</p>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={luniData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="lunaLabel" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v/1000).toFixed(1)}k`} />
-              <Tooltip formatter={(val) => formatRon(val)} />
-              <Bar dataKey="profitNet" name="Profit net" radius={[6, 6, 0, 0]}>
-                {luniData.map((entry, i) => (
-                  <Cell key={i} fill={entry.profitNet >= 0 ? '#10b981' : '#ef4444'} />
-                ))}
+        {/* Profit net bar */}
+        <div className="card" style={{padding:24}}>
+          <p style={{fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:17,fontWeight:500,color:B,margin:'0 0 4px'}}>Profit net lunar</p>
+          <p style={{fontSize:11,color:BEIGE,margin:'0 0 20px'}}>după deducerea cheltuielilor</p>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={luniData} margin={{top:5,right:20,left:10,bottom:5}}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F0EAE0" vertical={false}/>
+              <XAxis dataKey="lunaLabel" tick={{fontSize:11,fill:BEIGE}} axisLine={false} tickLine={false}/>
+              <YAxis tick={{fontSize:10,fill:BEIGE}} tickFormatter={v=>`${(v/1000).toFixed(1)}k`} axisLine={false} tickLine={false}/>
+              <Tooltip formatter={v=>formatRon(v)} contentStyle={{fontSize:11,borderRadius:10,border:`1px solid ${BORDER}`}}/>
+              <Bar dataKey="profitNet" radius={[5,5,0,0]}>
+                {luniData.map((e,i)=><Cell key={i} fill={e.profitNet>=0?B:'#dc2626'}/>)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
