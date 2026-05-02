@@ -68,29 +68,60 @@ function parseSmartBill(buf) {
   return {normale,storno}
 }
 
-const EMAG_IGNORAT=['FAACP','FACCP','FAPC','FAPOF']
-const EMAG_CH=['FC','FCCO','FCS','FCDP','FED','FY']
-const EMAG_INC=['FV','FVS']
-const EMAG_LABELS={FC:'Comision vânzări',FCS:'Storno comision',FCCO:'Corecție comision',FCDP:'Discount comision',FED:'Comision Genius',FY:'Card cadou emis la retur',FV:'Decont vouchere clienți',FVS:'Storno decont vouchere'}
+const EMAG_IGNORAT=['FAACP','FACCP','FAPC','FAPOF','FAECCP','FAECP']
+const EMAG_CH=['FC','FCCO','FCS','FCDP','FED','FY','FTIC']
+const EMAG_INC=['FV','FVS','FHIC']
+const EMAG_LABELS={
+  FC:'Comision vânzări',FCS:'Storno comision',FCCO:'Corecție comision',
+  FCDP:'Discount comision',FED:'Comision Genius',FY:'Card cadou emis la retur',
+  FV:'Decont vouchere clienți',FVS:'Storno decont vouchere',
+  FTIC:'Comision transport cross-border',FHIC:'Despăgubire produse deteriorate',
+}
 
-function parseEmagFacturi(buf) {
+function detectTaraEmag(buf) {
+  const wb = XLSX.read(buf,{type:'array'})
+  const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',nrows:2})
+  if (!data.length) return 'RO'
+  const row = data[0]
+  // Detectare după coloane — RO are 'Tip factura', BG/HU au 'Invoice type'
+  if (row['Invoice type'] !== undefined) {
+    // BG vs HU după supplier
+    const supplier = String(row['Supplier']||row['Furnizor']||'').toLowerCase()
+    if (supplier.includes('bulgaria')||supplier.includes('eood')||supplier.includes('bg')) return 'BG'
+    return 'HU'
+  }
+  return 'RO'
+}
+
+function parseEmagFacturi(buf, taraFortat) {
   const wb = XLSX.read(buf,{type:'array'})
   const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''})
+  if (!data.length) return {cheltuieli:[],incasari:[],tara:'RO'}
+
+  // Detectare RO vs BG/HU după coloane
+  const isEngleza = data[0]['Invoice type'] !== undefined
+  const tara = taraFortat || (isEngleza ? detectTaraEmag(buf) : 'RO')
+
   const cheltuieli=[], incasari=[]
   data.forEach((row,i)=>{
-    const tip=String(row['Tip factura']||'').trim()
+    const tip=String(isEngleza ? (row['Invoice type']||'') : (row['Tip factura']||'')).trim()
     if (!tip||EMAG_IGNORAT.includes(tip)) return
-    const valoare=parseFloat(row['Valoare factura cu TVA'])||0
-    const d=fmtData(String(row['Data emitere factura']||''))
-    const doc=String(row['Serie/numar factura']||'').trim()
+    const valoare=parseFloat(isEngleza ? row['Invoice value with VAT'] : row['Valoare factura cu TVA'])||0
+    const d=fmtData(String(isEngleza ? (row['Invoice emission date']||'') : (row['Data emitere factura']||'')))
+    const doc=String(isEngleza ? (row['Invoice series/number']||row['Invoice series\/number']||'') : (row['Serie/numar factura']||'')).trim()
     const label=EMAG_LABELS[tip]||tip
+    const categorie = tip==='FED'?`Comision Genius eMAG ${tara}`:
+                      tip==='FY'?'Card cadou retur eMAG':
+                      tip==='FTIC'?`Comision transport cross-border eMAG ${tara}`:
+                      tip==='FHIC'?`Handling fee eMAG ${tara}`:
+                      `Comisioane eMAG ${tara}`
     if (EMAG_CH.includes(tip)) {
-      cheltuieli.push({_id:`ef_${i}`,tip,label,categorie:tip==='FED'?'Comision Genius eMAG':tip==='FY'?'Card cadou retur eMAG':'Comisioane eMAG',suma:valoare,data:d,document:doc,isNegativ:valoare<0})
+      cheltuieli.push({_id:`ef_${i}`,tip,label,categorie,suma:valoare,data:d,document:doc,isNegativ:valoare<0,tara})
     } else if (EMAG_INC.includes(tip)) {
-      incasari.push({_id:`ei_${i}`,tip,label,suma:Math.abs(valoare),data:d,document:doc,isNegativ:valoare<0})
+      incasari.push({_id:`ei_${i}`,tip,label,suma:Math.abs(valoare),data:d,document:doc,isNegativ:valoare<0,tara})
     }
   })
-  return {cheltuieli,incasari}
+  return {cheltuieli,incasari,tara}
 }
 
 function parseEmagAds(buf) {
@@ -278,7 +309,8 @@ export default function ImportPage() {
 
   const handleEF=file=>wrap(async()=>{
     const buf=await file.arrayBuffer()
-    setEfData(parseEmagFacturi(new Uint8Array(buf))); setEfResult(null)
+    const result=parseEmagFacturi(new Uint8Array(buf))
+    setEfData(result); setEfResult(null)
   })
 
   const handleAds=file=>wrap(async()=>{
@@ -406,7 +438,7 @@ export default function ImportPage() {
                 <li>Selectează perioada → <strong>Export Excel</strong></li>
               </ol>
               <InfoBox color="amber">
-                Se importă: Comisioane FC/FCS/FCCO/FCDP + Card cadou retur FY → Cheltuieli · Genius FED → Cheltuieli · Decont vouchere FV/FVS → Încasări eMAG. Avansurile de reclame (FAACP/FACCP) sunt ignorate — folosește tab-ul eMAG Ads.
+                Se importă: FC/FCS/FCCO/FCDP/FTIC/FHIC → Cheltuieli · FED → Genius · FY → Card cadou retur · FV/FVS → Încasări eMAG. Suportă fișiere RO, BG și HU — țara se detectează automat. Avansurile de reclame (FAACP/FACCP) sunt ignorate.
               </InfoBox>
             </div>
 
@@ -430,7 +462,12 @@ export default function ImportPage() {
                 </div>
 
                 <div className="card overflow-hidden">
-                  <div className="px-4 py-2.5 bg-orange-50 border-b border-orange-100"><p className="text-[11px] font-bold text-orange-700">Cheltuieli eMAG ({efData.cheltuieli.length})</p></div>
+                  <div className="px-4 py-2.5 bg-orange-50 border-b border-orange-100 flex items-center justify-between">
+                  <p className="text-[11px] font-bold text-orange-700">Cheltuieli eMAG ({efData.cheltuieli.length})</p>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{background:efData.tara==='RO'?'#dbeafe':efData.tara==='BG'?'#fef3c7':'#f3e8ff',color:efData.tara==='RO'?'#1d4ed8':efData.tara==='BG'?'#92400e':'#7e22ce'}}>
+                    {efData.tara==='RO'?'🇷🇴 România':efData.tara==='BG'?'🇧🇬 Bulgaria':'🇭🇺 Ungaria'} — detectat automat
+                  </span>
+                </div>
                   <div className="overflow-x-auto max-h-56 overflow-y-auto">
                     <table className="w-full">
                       <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">

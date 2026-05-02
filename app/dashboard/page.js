@@ -102,10 +102,13 @@ export default function DashboardPage() {
     profitNet: d.profit - d.cheltuieli,
   }))
 
-  const canalData = ['emag','site','altele'].map(canal => ({
-    name: canal==='emag'?'eMAG':canal==='site'?'Site':'Altele',
-    venit: filteredV.filter(v=>v.canal===canal).reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0),
-  })).filter(d=>d.venit>0)
+  const canalData = [
+    {name:'eMAG RO', venit: filteredV.filter(v=>v.canal==='emag'&&(!v.tara||v.tara==='RO')).reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0), fill:B},
+    {name:'eMAG BG', venit: filteredV.filter(v=>v.canal==='emag'&&v.tara==='BG').reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0), fill:BEIGE},
+    {name:'eMAG HU', venit: filteredV.filter(v=>v.canal==='emag'&&v.tara==='HU').reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0), fill:'#8B7355'},
+    {name:'Site', venit: filteredV.filter(v=>v.canal==='site').reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0), fill:'#4A4A45'},
+    {name:'Altele', venit: filteredV.filter(v=>v.canal==='altele').reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0), fill:'#C8BFB0'},
+  ].filter(d=>d.venit>0)
 
   const topProduse = Object.entries(filteredV.reduce((acc,v) => {
     if (!acc[v.produsId]) acc[v.produsId]={venit:0,profit:0,qty:0}
@@ -164,7 +167,7 @@ export default function DashboardPage() {
                 <YAxis tick={{fontSize:10,fill:BEIGE}} tickFormatter={v=>`${(v/1000).toFixed(0)}k`} axisLine={false} tickLine={false}/>
                 <Tooltip formatter={v=>formatRon(v)} contentStyle={{fontSize:11,borderRadius:10,border:`1px solid ${BORDER}`}}/>
                 <Bar dataKey="venit" radius={[6,6,0,0]}>
-                  {canalData.map((_,i)=><Cell key={i} fill={i===0?B:i===1?BEIGE:'#C8C2B8'}/>)}
+                  {canalData.map((e,i)=><Cell key={i} fill={e.fill||B}/>)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
