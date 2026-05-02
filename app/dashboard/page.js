@@ -216,7 +216,7 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
       </div>
-      {showTop     </AppLayout>    </AppLayout> <TopProdusePanou produse={produse} vanzari={vanzari} dateFrom={dateFrom} dateTo={dateTo} onClose={()=>setShowTop(false)}/>}
+      {showTop && <TopProdusePanou produse={produse} vanzari={vanzari} dateFrom={dateFrom} dateTo={dateTo} onClose={()=>setShowTop(false)}/>}
     </AppLayout>
   )
 }
