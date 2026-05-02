@@ -1,102 +1,284 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-* {
-  box-sizing: border-box;
+/* ── VARIABILE BRAND ─────────────────────────────────────── */
+:root {
+  --b-black:        #1C1C1A;
+  --b-cream:        #F5F0E8;
+  --b-beige:        #C4A882;
+  --b-beige-light:  #EDE5D8;
+  --b-white:        #FFFFFF;
+  --b-gray:         #6B6B67;
+  --b-border:       #E8E0D4;
+  --b-surface:      #FAFAF8;
 }
+
+/* ── BASE ─────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
 
 body {
-  background-color: #f8fafc;
-  color: #1e293b;
+  background-color: var(--b-cream) !important;
+  color: var(--b-black);
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
+/* ── OVERRIDE TAILWIND ORANGE → BEIGE/BLACK ───────────────── */
 
-.sidebar-link {
-  @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all duration-150;
-}
-.sidebar-link.active {
-  @apply bg-orange-50 text-orange-600 hover:bg-orange-50 hover:text-orange-600;
-}
+/* bg-orange-* */
+.bg-orange-50  { background-color: var(--b-cream) !important; }
+.bg-orange-100 { background-color: var(--b-beige-light) !important; }
+.bg-orange-400 { background-color: var(--b-beige) !important; }
+.bg-orange-500 { background-color: var(--b-black) !important; }
+.bg-orange-600 { background-color: #2d2d2a !important; }
 
+/* text-orange-* */
+.text-orange-400 { color: var(--b-beige) !important; }
+.text-orange-500 { color: var(--b-beige) !important; }
+.text-orange-600 { color: var(--b-black) !important; }
+.text-orange-700 { color: var(--b-black) !important; }
+
+/* border-orange-* */
+.border-orange-200 { border-color: var(--b-border) !important; }
+.border-orange-300 { border-color: var(--b-beige) !important; }
+.border-orange-400 { border-color: var(--b-beige) !important; }
+.border-orange-500 { border-color: var(--b-black) !important; }
+
+/* hover:bg-orange-* */
+.hover\:bg-orange-50:hover  { background-color: var(--b-cream) !important; }
+.hover\:bg-orange-600:hover { background-color: #2d2d2a !important; }
+
+/* focus:ring-orange-* */
+.focus\:ring-orange-400:focus { --tw-ring-color: var(--b-beige) !important; }
+
+/* bg-gray-50 → cream */
+.bg-gray-50   { background-color: var(--b-cream) !important; }
+
+/* bg-slate-* ajustări */
+.bg-slate-50   { background-color: var(--b-surface) !important; }
+.bg-slate-100  { background-color: var(--b-beige-light) !important; }
+
+/* ── SCROLLBAR ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--b-cream); }
+::-webkit-scrollbar-thumb { background: var(--b-beige); border-radius: 2px; }
+
+/* ── CARD ────────────────────────────────────────────────── */
 .card {
-  @apply bg-white rounded-xl border border-slate-200 shadow-sm;
-}
-
-.btn-primary {
-  @apply inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white text-sm font-semibold rounded-lg hover:bg-orange-600 transition-colors duration-150 cursor-pointer;
-}
-.btn-secondary {
-  @apply inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-700 text-sm font-semibold rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors duration-150 cursor-pointer;
-}
-.btn-danger {
-  @apply inline-flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 text-xs font-semibold rounded-md hover:bg-red-100 transition-colors duration-150 cursor-pointer;
-}
-.btn-ghost {
-  @apply inline-flex items-center gap-2 px-3 py-1.5 text-slate-500 text-xs font-semibold rounded-md hover:bg-slate-100 transition-colors duration-150 cursor-pointer;
-}
-
-.input {
-  @apply w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white;
-}
-.label {
-  @apply block text-xs font-semibold text-slate-600 mb-1;
-}
-
-.table-header {
-  @apply text-xs font-semibold text-slate-500 uppercase tracking-wider;
-}
-.table-row {
-  @apply border-b border-slate-100 hover:bg-slate-50 transition-colors;
-}
-.table-cell {
-  @apply px-4 py-3 text-sm text-slate-700;
-}
-
-.badge-emag {
-  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700;
-}
-.badge-site {
-  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700;
-}
-.badge-altele {
-  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600;
-}
-.badge-urban {
-  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700;
-}
-.badge-rural {
-  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700;
+  background: var(--b-white) !important;
+  border-radius: 14px !important;
+  border: 1px solid var(--b-border) !important;
+  box-shadow: none !important;
 }
 
 .kpi-card {
-  @apply bg-white rounded-xl border border-slate-200 shadow-sm p-5;
+  background: var(--b-white) !important;
+  border-radius: 14px !important;
+  border: 1px solid var(--b-border) !important;
+  padding: 1.25rem;
 }
 
+/* ── SIDEBAR LINK ────────────────────────────────────────── */
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  margin-bottom: 2px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: var(--b-gray);
+  transition: all 0.15s;
+}
+.sidebar-link:hover {
+  background: var(--b-cream);
+  color: var(--b-black);
+}
+.sidebar-link.active {
+  background: var(--b-black) !important;
+  color: var(--b-white) !important;
+}
+
+/* ── BUTTONS ─────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  background: var(--b-black) !important;
+  color: var(--b-white) !important;
+  border: none;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+}
+.btn-primary:hover { background: #2d2d2a !important; }
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  background: var(--b-white) !important;
+  color: var(--b-black) !important;
+  border: 1px solid var(--b-border) !important;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+}
+.btn-secondary:hover { background: var(--b-cream) !important; }
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #fef2f2;
+  color: #dc2626;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-danger:hover { background: #fee2e2; }
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  color: var(--b-gray);
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-ghost:hover { background: var(--b-cream); }
+
+/* ── INPUTS ──────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 13px;
+  border: 1px solid var(--b-border);
+  border-radius: 9px;
+  background: var(--b-white);
+  color: var(--b-black);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input:focus {
+  border-color: var(--b-beige);
+  box-shadow: 0 0 0 3px rgba(196,168,130,0.15);
+}
+
+.label {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--b-gray);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 5px;
+}
+
+/* ── TABLE ───────────────────────────────────────────────── */
+.table-header {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--b-gray);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.table-row {
+  border-bottom: 1px solid var(--b-border);
+  transition: background 0.1s;
+}
+.table-row:hover { background: var(--b-surface) !important; }
+.table-cell {
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--b-black);
+}
+
+/* ── BADGES ──────────────────────────────────────────────── */
+.badge-emag   { display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;background:#E8F0FE;color:#1a56db; }
+.badge-site   { display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;background:#ECFDF5;color:#065f46; }
+.badge-altele { display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;background:var(--b-beige-light);color:var(--b-gray); }
+.badge-urban  { display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;background:var(--b-cream);color:var(--b-black); }
+.badge-rural  { display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;background:var(--b-beige-light);color:var(--b-gray); }
+
+/* ── MODAL ───────────────────────────────────────────────── */
 .modal-overlay {
-  @apply fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4;
+  position: fixed;
+  inset: 0;
+  background: rgba(28,28,26,0.55);
+  backdrop-filter: blur(4px);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
 }
 .modal-box {
-  @apply bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto;
+  background: var(--b-white);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 42rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid var(--b-border);
 }
 
-.profit-positive {
-  @apply text-emerald-600 font-semibold;
+/* ── PROFIT CELLS ────────────────────────────────────────── */
+.profit-positive { color: #16a34a; font-weight: 600; }
+.profit-negative { color: #dc2626; font-weight: 600; }
+
+/* ── DISPLAY FONT ────────────────────────────────────────── */
+.font-display,
+h1, h2 {
+  font-family: 'Cormorant Garamond', Georgia, serif;
 }
-.profit-negative {
-  @apply text-red-500 font-semibold;
+
+/* ── MISC OVERRIDES ──────────────────────────────────────── */
+
+/* Dot activ sidebar */
+.w-1\.5.h-1\.5.rounded-full.bg-orange-500 {
+  background-color: var(--b-beige) !important;
 }
+
+/* Active dot în sidebar - forțat beige când e pe fond negru */
+.sidebar-link.active .w-1\.5 {
+  background-color: var(--b-beige) !important;
+}
+
+/* Focus ring general */
+*:focus-visible {
+  outline: 2px solid var(--b-beige);
+  outline-offset: 2px;
+}
+
+/* Checkbox accent */
+input[type="checkbox"] { accent-color: var(--b-black); }
+
+/* Animate spin */
+@keyframes spin { to { transform: rotate(360deg); } }
+.animate-spin { animation: spin 0.7s linear infinite; }
+
+/* Animate pulse */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+.animate-pulse { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }

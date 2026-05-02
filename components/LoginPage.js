@@ -1,13 +1,13 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Zap, Eye, EyeOff, Lock } from 'lucide-react'
+import { Eye, EyeOff, Lock } from 'lucide-react'
 
 export default function LoginPage({ children }) {
   const [autentificat, setAutentificat] = useState(false)
-  const [parola, setParola] = useState('')
-  const [eroare, setEroare] = useState(false)
-  const [afiseaza, setAfiseaza] = useState(false)
-  const [verificat, setVerificat] = useState(false)
+  const [parola,       setParola]       = useState('')
+  const [eroare,       setEroare]       = useState(false)
+  const [afiseaza,     setAfiseaza]     = useState(false)
+  const [verificat,    setVerificat]    = useState(false)
 
   useEffect(() => {
     const session = sessionStorage.getItem('barrano_auth')
@@ -26,108 +26,116 @@ export default function LoginPage({ children }) {
     }
   }
 
-  const handleKey = (e) => {
-    if (e.key === 'Enter') handleLogin()
-  }
-
   if (!verificat) return null
   if (autentificat) return children
 
   return (
     <div style={{
-      minHeight: '100vh', background: '#f8fafc',
+      minHeight: '100vh',
+      background: '#F5F0E8',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: '-apple-system, BlinkMacSystemFont, Inter, sans-serif'
+      fontFamily: 'Inter, sans-serif',
     }}>
       <div style={{
-        background: '#fff', borderRadius: 24, border: '1.5px solid #e2e8f0',
-        padding: '40px 36px', width: '100%', maxWidth: 380,
-        boxShadow: '0 4px 24px rgba(0,0,0,0.06)'
+        background: '#FFFFFF',
+        borderRadius: 20,
+        border: '1px solid #E8E0D4',
+        padding: '44px 40px',
+        width: '100%', maxWidth: 380,
+        boxShadow: '0 4px 40px rgba(28,28,26,0.08)',
       }}>
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
+        <div style={{ textAlign: 'center', marginBottom: 36 }}>
           <div style={{
-            width: 40, height: 40, background: '#f97316', borderRadius: 12,
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
+            width: 52, height: 52,
+            background: '#1C1C1A',
+            borderRadius: 12,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 14px',
           }}>
-            <Zap size={20} color="#fff" fill="#fff" />
+            <span style={{
+              fontFamily: "'Cormorant Garamond', Georgia, serif",
+              fontSize: 22, fontStyle: 'italic', fontWeight: 400,
+              color: '#F5F0E8', letterSpacing: '-1px',
+            }}>BR</span>
           </div>
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', letterSpacing: '.5px' }}>BARRANO</div>
-            <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>Management intern</div>
+          <div style={{
+            fontFamily: "'Cormorant Garamond', Georgia, serif",
+            fontSize: 22, fontWeight: 500,
+            letterSpacing: '0.14em', color: '#1C1C1A',
+          }}>
+            BARRANO
+          </div>
+          <div style={{
+            fontSize: 10, fontWeight: 500,
+            letterSpacing: '0.2em', color: '#C4A882',
+            textTransform: 'uppercase', marginTop: 4,
+          }}>
+            Management intern
           </div>
         </div>
 
         {/* Title */}
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>Bună ziua</div>
-          <div style={{ fontSize: 13, color: '#64748b' }}>Introduceți parola pentru a accesa panoul de control.</div>
+          <div style={{ fontSize: 16, fontWeight: 500, color: '#1C1C1A', marginBottom: 4 }}>Bună ziua</div>
+          <div style={{ fontSize: 13, color: '#6B6B67', lineHeight: 1.5 }}>Introduceți parola pentru a accesa panoul de control.</div>
         </div>
 
         {/* Input */}
         <div style={{ marginBottom: 16 }}>
           <label style={{
-            display: 'block', fontSize: 11, fontWeight: 700,
-            color: '#64748b', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: 8
+            display: 'block', fontSize: 10, fontWeight: 600,
+            color: '#C4A882', textTransform: 'uppercase',
+            letterSpacing: '0.1em', marginBottom: 8,
           }}>Parolă</label>
           <div style={{ position: 'relative' }}>
-            <div style={{
-              position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)'
-            }}>
-              <Lock size={15} color="#94a3b8" />
+            <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}>
+              <Lock size={14} color="#C4A882"/>
             </div>
             <input
               type={afiseaza ? 'text' : 'password'}
               value={parola}
               onChange={e => { setParola(e.target.value); setEroare(false) }}
-              onKeyDown={handleKey}
+              onKeyDown={e => e.key === 'Enter' && handleLogin()}
               placeholder="Introduceți parola..."
               autoFocus
               style={{
-                width: '100%', padding: '12px 44px 12px 40px',
-                border: `1.5px solid ${eroare ? '#ef4444' : '#e2e8f0'}`,
-                borderRadius: 12, fontSize: 14, outline: 'none',
-                background: eroare ? '#fef2f2' : '#fff',
-                color: '#1e293b', boxSizing: 'border-box',
-                transition: 'border-color .15s'
+                width: '100%', padding: '11px 40px',
+                border: `1px solid ${eroare ? '#dc2626' : '#E8E0D4'}`,
+                borderRadius: 10, fontSize: 13,
+                background: eroare ? '#fef2f2' : '#FAFAF8',
+                color: '#1C1C1A', outline: 'none',
+                boxSizing: 'border-box',
               }}
             />
-            <button
-              onClick={() => setAfiseaza(!afiseaza)}
-              style={{
-                position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-                background: 'none', border: 'none', cursor: 'pointer', padding: 4
-              }}
-            >
-              {afiseaza ? <EyeOff size={15} color="#94a3b8" /> : <Eye size={15} color="#94a3b8" />}
+            <button onClick={() => setAfiseaza(!afiseaza)}
+              style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+              {afiseaza ? <EyeOff size={14} color="#C4A882"/> : <Eye size={14} color="#C4A882"/>}
             </button>
           </div>
           {eroare && (
-            <div style={{ fontSize: 12, color: '#ef4444', marginTop: 6, fontWeight: 500 }}>
-              Parolă incorectă. Încearcă din nou.
-            </div>
+            <div style={{ fontSize: 12, color: '#dc2626', marginTop: 6 }}>Parolă incorectă. Încearcă din nou.</div>
           )}
         </div>
 
         {/* Button */}
-        <button
-          onClick={handleLogin}
+        <button onClick={handleLogin}
           style={{
-            width: '100%', padding: '13px', background: '#f97316',
-            color: '#fff', border: 'none', borderRadius: 12,
-            fontSize: 14, fontWeight: 700, cursor: 'pointer',
-            transition: 'background .15s'
-          }}
-          onMouseOver={e => e.target.style.background = '#ea580c'}
-          onMouseOut={e => e.target.style.background = '#f97316'}
-        >
+            width: '100%', padding: 13,
+            background: '#1C1C1A', color: '#F5F0E8',
+            border: 'none', borderRadius: 10,
+            fontSize: 13, fontWeight: 500,
+            letterSpacing: '0.06em', cursor: 'pointer',
+          }}>
           Intră în aplicație
         </button>
 
-        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: '#cbd5e1' }}>
-          © 2025 Activ Mag S.R.L. · Acces restricționat
+        <div style={{ textAlign: 'center', marginTop: 24, fontSize: 10, color: '#C4A882', letterSpacing: '0.05em' }}>
+          © 2025 Activ Mag S.R.L.
         </div>
       </div>
+
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600&display=swap');`}</style>
     </div>
   )
 }
