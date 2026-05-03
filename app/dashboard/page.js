@@ -79,7 +79,7 @@ export default function DashboardPage() {
   const load = useCallback(() => { initStorage(); setProduse(getProduse()); setVanzari(getVanzari()); setCheltuieli(getCheltuieli()) }, [])
   useEffect(() => { load() }, [load])
 
-  const filteredV = filterByDateRange(vanzari, 'data', dateFrom, dateTo)
+  const filteredV = filterByDateRange(vanzari, 'data', dateFrom, dateTo).filter(v => !v.isStorno)
   const filteredC = filterByDateRange(cheltuieli, 'data', dateFrom, dateTo)
 
   const totalVenit = filteredV.reduce((s,v) => s + calcVanzareProfit(v,produse).venit, 0)
@@ -122,7 +122,7 @@ export default function DashboardPage() {
     acc[t.tara] = v.reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0)
     return acc
   }, {})
-  const totalVenitEmag = Object.values(venitPerTara).reduce((s,v)=>s+v,0)
+  const totalVenitEmag = totalVenit  // include Site + Altele în proporție pentru distribuție corectă cheltuieli
   // Cheltuieli cu tara setată explicit (ex: FTIC cross-border)
   const cheltCuTara = filteredC.filter(c => c.tara && c.tara !== '')
   // Cheltuieli fără tara → distribuim proporțional cu vânzările
@@ -202,7 +202,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {profitPerTara.map((t,i)=>{
+                {profitPerTara.filter(t => t.venit > 0 || t.chelt > 0).map((t,i)=>{
                   const marja = t.venit>0?(t.profitNet/t.venit)*100:0
                   return (
                     <tr key={i} style={{borderBottom:`1px solid #F5F0E8`}}>
