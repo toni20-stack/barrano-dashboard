@@ -293,7 +293,10 @@ export default function ImportPage() {
   // eMAG Facturi
   const [efData,setEfData]=useState(null)
   const [efTara,setEfTara]=useState('RO')
+  const [efCurs,setEfCurs]=useState(1)
   const [efResult,setEfResult]=useState(null)
+
+  const CURS_DEFAULT = {RO:1, BG:2.90, HU:0.0135}
 
   // eMAG Ads
   const [adsData,setAdsData]=useState(null)
@@ -311,7 +314,7 @@ export default function ImportPage() {
   const handleEF=file=>wrap(async()=>{
     const buf=await file.arrayBuffer()
     const result=parseEmagFacturi(new Uint8Array(buf))
-    setEfData(result); setEfTara(result.tara); setEfResult(null)
+    setEfData(result); setEfTara(result.tara); setEfCurs(CURS_DEFAULT[result.tara]||1); setEfResult(null)
   })
 
   const handleAds=file=>wrap(async()=>{
@@ -467,15 +470,24 @@ export default function ImportPage() {
                   <p className="text-[11px] font-bold text-orange-700">Cheltuieli eMAG ({efData.cheltuieli.length})</p>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-slate-400">Piață:</span>
-                    <select value={efTara} onChange={e=>setEfTara(e.target.value)}
+                    <select value={efTara} onChange={e=>{setEfTara(e.target.value);setEfCurs(CURS_DEFAULT[e.target.value]||1)}}
                       className="text-[11px] font-bold border border-slate-200 rounded-lg px-2 py-1 bg-white cursor-pointer">
-                      <option value="RO">🇷🇴 România</option>
-                      <option value="BG">🇧🇬 Bulgaria</option>
-                      <option value="HU">🇭🇺 Ungaria</option>
+                      <option value="RO">🇷🇴 România (RON)</option>
+                      <option value="BG">🇧🇬 Bulgaria (BGN)</option>
+                      <option value="HU">🇭🇺 Ungaria (HUF)</option>
                     </select>
                     {efTara!==efData.tara&&<span className="text-[10px] text-amber-600 font-semibold">modificat manual</span>}
                     {efTara===efData.tara&&<span className="text-[10px] text-slate-400">detectat automat</span>}
                   </div>
+                  {efTara!=='RO'&&(
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-500">Curs {efTara==='BG'?'BGN':'HUF'} → RON:</span>
+                      <input type="number" step="0.0001" min="0" value={efCurs}
+                        onChange={e=>setEfCurs(parseFloat(e.target.value)||1)}
+                        className="text-[11px] font-bold border border-slate-200 rounded-lg px-2 py-1 w-24 text-right"/>
+                      <span className="text-[10px] text-slate-400">1 {efTara==='BG'?'BGN':'HUF'} = {efCurs} RON</span>
+                    </div>
+                  )}
                 </div>
                   <div className="overflow-x-auto max-h-56 overflow-y-auto">
                     <table className="w-full">
@@ -522,7 +534,10 @@ export default function ImportPage() {
 
                 <div className="flex gap-3 justify-end">
                   <button className="btn-secondary" onClick={()=>setEfData(null)}>← Alt fișier</button>
-                  <button className="btn-primary" onClick={()=>setEfResult(doImportEF(efData.cheltuieli.map(c=>({...c,tara:efTara})),efData.incasari.map(i=>({...i,tara:efTara}))))}><CheckCircle size={14}/> Importă tot</button>
+                  <button className="btn-primary" onClick={()=>setEfResult(doImportEF(
+                    efData.cheltuieli.map(c=>({...c,tara:efTara,suma:parseFloat((Math.abs(c.suma)*efCurs).toFixed(2))})),
+                    efData.incasari.map(i=>({...i,tara:efTara,suma:parseFloat((i.suma*efCurs).toFixed(2))}))
+                  ))}><CheckCircle size={14}/> Importă tot</button>
                 </div>
               </div>
             )}
