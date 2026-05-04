@@ -174,7 +174,7 @@ function doImportEF(cheltuieli, incasari) {
 
 function doImportAds(prepaid) {
   initStorage()
-  const noi=prepaid.map(p=>({id:uuidv4(),categorie:'Marketing eMAG Ads',suma:p.valoare,data:p.data,descriere:'eMAG Ads — credit pre-paid',sursa:'emag_ads'}))
+  const noi=prepaid.map(p=>({id:uuidv4(),categorie:'Marketing eMAG Ads',suma:p.valoare,data:p.data,descriere:'eMAG Ads — credit pre-paid',sursa:'emag_ads',tara:'RO'}))
   saveCheltuieli([...getCheltuieli(),...noi])
   return {cheltuieli:noi.length}
 }
