@@ -303,7 +303,7 @@ export default function ImportPage() {
     {cod:'BGN', label:'BGN — Leva bulgară',  curs:2.58},
     {cod:'HUF', label:'HUF — Forint ungar',  curs:0.0135},
   ]
-  const MONEDA_DEFAULT_TARA = {RO:'RON', BG:'BGN', HU:'HUF'}
+  const MONEDA_DEFAULT_TARA = {RO:'RON', BG:'EUR', HU:'HUF'}
 
   // eMAG Ads
   const [adsData,setAdsData]=useState(null)
