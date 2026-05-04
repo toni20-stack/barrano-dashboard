@@ -18,7 +18,7 @@ export default function AnalizaPage() {
   const [vanzari,    setVanzari]    = useState([])
   const [produse,    setProduse]    = useState([])
   const [cheltuieli, setCheltuieli] = useState([])
-  const [dateFrom,   setDateFrom]   = useState('2025-01-01')
+  const [dateFrom,   setDateFrom]   = useState(`${new Date().getFullYear()}-01-01`)
   const [dateTo,     setDateTo]     = useState(new Date().toISOString().slice(0,10))
   const [tab,        setTab]        = useState('performanta')
   const [sortBy,     setSortBy]     = useState('venit')

@@ -5,7 +5,7 @@ import AppLayout from '../../components/AppLayout'
 import Topbar from '../../components/Topbar'
 import { KPICard } from '../../components/ui'
 import { getProduse, getVanzari, getCheltuieli, initStorage, resetStorage, clearAllData } from '../../lib/storage'
-import { calcVanzareProfit, formatRon, formatPct, filterByDateRange } from '../../lib/calculations'
+import { calcVanzareProfit, formatRon, formatRon0, formatPct, filterByDateRange } from '../../lib/calculations'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
 const B = '#1C1C1A'; const BEIGE = '#C4A882'; const CREAM = '#F5F0E8'; const BORDER = '#E8E0D4'
@@ -27,7 +27,7 @@ function TopProdusePanou({ produse, vanzari, dateFrom, dateTo, onClose }) {
         <div style={{padding:'20px 24px',borderBottom:'1px solid #F0EAE0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div>
             <h2 style={{fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:20,fontWeight:500,color:B,margin:0}}>Top produse după venit</h2>
-            <p style={{fontSize:11,color:BEIGE,margin:'3px 0 0'}}>{stats.length} produse · total {new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:0}).format(totalVenit)}</p>
+            <p style={{fontSize:11,color:BEIGE,margin:'3px 0 0'}}>{stats.length} produse · total {formatRon0(totalVenit)}</p>
           </div>
           <button onClick={onClose} style={{border:'none',background:'#F5F0E8',borderRadius:8,padding:8,cursor:'pointer',display:'flex'}}><X size={16} color={B}/></button>
         </div>
@@ -48,8 +48,8 @@ function TopProdusePanou({ produse, vanzari, dateFrom, dateTo, onClose }) {
                     <td style={{padding:'12px 16px',fontSize:11,color:BEIGE,fontWeight:600}}>{i+1}</td>
                     <td style={{padding:'12px 16px',fontSize:12,fontWeight:500,color:B}}>{p.name}</td>
                     <td style={{padding:'12px 16px',fontSize:12,color:B,textAlign:'right'}}>{p.qty} buc</td>
-                    <td style={{padding:'12px 16px',fontSize:12,fontWeight:600,color:B,textAlign:'right',fontVariantNumeric:'tabular-nums'}}>{new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:2}).format(p.venit)}</td>
-                    <td style={{padding:'12px 16px',fontSize:12,fontWeight:600,textAlign:'right',color:p.profit>=0?'#16a34a':'#dc2626',fontVariantNumeric:'tabular-nums'}}>{new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:2}).format(p.profit)}</td>
+                    <td style={{padding:'12px 16px',fontSize:12,fontWeight:600,color:B,textAlign:'right',fontVariantNumeric:'tabular-nums'}}>{formatRon(p.venit)}</td>
+                    <td style={{padding:'12px 16px',fontSize:12,fontWeight:600,textAlign:'right',color:p.profit>=0?'#16a34a':'#dc2626',fontVariantNumeric:'tabular-nums'}}>{formatRon(p.profit)}</td>
                     <td style={{padding:'12px 16px',fontSize:12,fontWeight:600,textAlign:'right',color:p.marja>=20?'#16a34a':p.marja>=10?'#d97706':'#dc2626'}}>{p.marja.toFixed(1)}%</td>
                     <td style={{padding:'12px 16px',textAlign:'right'}}>
                       <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',gap:6}}>
@@ -73,17 +73,18 @@ export default function DashboardPage() {
   const [vanzari, setVanzari] = useState([])
   const [cheltuieli, setCheltuieli] = useState([])
   const [showTop, setShowTop] = useState(false)
-  const [dateFrom, setDateFrom] = useState('2025-01-01')
+  const [dateFrom, setDateFrom] = useState(`${new Date().getFullYear()}-01-01`)
   const [dateTo, setDateTo] = useState(new Date().toISOString().slice(0,10))
 
   const load = useCallback(() => { initStorage(); setProduse(getProduse()); setVanzari(getVanzari()); setCheltuieli(getCheltuieli()) }, [])
   useEffect(() => { load() }, [load])
 
-  const filteredV = filterByDateRange(vanzari, 'data', dateFrom, dateTo).filter(v => !v.isStorno)
-  const filteredC = filterByDateRange(cheltuieli, 'data', dateFrom, dateTo)
+  const filteredV = useMemo(() => filterByDateRange(vanzari, 'data', dateFrom, dateTo).filter(v => !v.isStorno), [vanzari, dateFrom, dateTo])
+  const filteredC = useMemo(() => filterByDateRange(cheltuieli, 'data', dateFrom, dateTo), [cheltuieli, dateFrom, dateTo])
+  const profitCache = useMemo(() => { const m = new Map(); filteredV.forEach(v => m.set(v.id, calcVanzareProfit(v, produse))); return m }, [filteredV, produse])
 
-  const totalVenit = filteredV.reduce((s,v) => s + calcVanzareProfit(v,produse).venit, 0)
-  const totalProfit = filteredV.reduce((s,v) => s + calcVanzareProfit(v,produse).profit, 0)
+  const totalVenit = useMemo(() => filteredV.reduce((s,v) => s + profitCache.get(v.id).venit, 0), [filteredV, profitCache])
+  const totalProfit = useMemo(() => filteredV.reduce((s,v) => s + profitCache.get(v.id).profit, 0), [filteredV, profitCache])
   const totalChelt = filteredC.reduce((s,c) => s + Number(c.suma), 0)
   const profitNet = totalProfit - totalChelt
   const marjaGlobala = totalVenit > 0 ? (totalProfit/totalVenit)*100 : 0
@@ -92,7 +93,7 @@ export default function DashboardPage() {
   filteredV.forEach(v => {
     const l = v.data.slice(0,7)
     if (!luniMap[l]) luniMap[l] = { luna:l, venit:0, profit:0, cheltuieli:0 }
-    const c = calcVanzareProfit(v, produse)
+    const c = profitCache.get(v.id)
     luniMap[l].venit += c.venit; luniMap[l].profit += c.profit
   })
   filteredC.forEach(c => { const l = c.data.slice(0,7); if (!luniMap[l]) luniMap[l]={luna:l,venit:0,profit:0,cheltuieli:0}; luniMap[l].cheltuieli += Number(c.suma) })
@@ -103,11 +104,11 @@ export default function DashboardPage() {
   }))
 
   const canalData = [
-    {name:'eMAG RO', venit: filteredV.filter(v=>v.canal==='emag'&&(!v.tara||v.tara==='RO')).reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0), fill:B},
-    {name:'eMAG BG', venit: filteredV.filter(v=>v.canal==='emag'&&v.tara==='BG').reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0), fill:BEIGE},
-    {name:'eMAG HU', venit: filteredV.filter(v=>v.canal==='emag'&&v.tara==='HU').reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0), fill:'#8B7355'},
-    {name:'Site', venit: filteredV.filter(v=>v.canal==='site').reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0), fill:'#4A4A45'},
-    {name:'Altele', venit: filteredV.filter(v=>v.canal==='altele').reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0), fill:'#C8BFB0'},
+    {name:'eMAG RO', venit: filteredV.filter(v=>v.canal==='emag'&&(!v.tara||v.tara==='RO')).reduce((s,v)=>s+profitCache.get(v.id).venit,0), fill:B},
+    {name:'eMAG BG', venit: filteredV.filter(v=>v.canal==='emag'&&v.tara==='BG').reduce((s,v)=>s+profitCache.get(v.id).venit,0), fill:BEIGE},
+    {name:'eMAG HU', venit: filteredV.filter(v=>v.canal==='emag'&&v.tara==='HU').reduce((s,v)=>s+profitCache.get(v.id).venit,0), fill:'#8B7355'},
+    {name:'Site', venit: filteredV.filter(v=>v.canal==='site').reduce((s,v)=>s+profitCache.get(v.id).venit,0), fill:'#4A4A45'},
+    {name:'Altele', venit: filteredV.filter(v=>v.canal==='altele').reduce((s,v)=>s+profitCache.get(v.id).venit,0), fill:'#C8BFB0'},
   ].filter(d=>d.venit>0)
 
   // Profit per tara
@@ -119,22 +120,23 @@ export default function DashboardPage() {
   // Calculăm vânzările per piață pentru distribuție proporțională cheltuieli
   const venitPerTara = tari.reduce((acc, t) => {
     const v = filteredV.filter(v=>v.canal==='emag'&&(t.tara==='RO'?(!v.tara||v.tara==='RO'):v.tara===t.tara))
-    acc[t.tara] = v.reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0)
+    acc[t.tara] = v.reduce((s,v)=>s+profitCache.get(v.id).venit,0)
     return acc
   }, {})
-  const totalVenitEmag = totalVenit  // include Site + Altele în proporție pentru distribuție corectă cheltuieli
+  const totalVenitEmag = Object.values(venitPerTara).reduce((s, v) => s + v, 0)
   // Cheltuieli cu tara setată explicit (ex: FTIC cross-border)
   const cheltCuTara = filteredC.filter(c => c.tara && c.tara !== '')
   // Cheltuieli fără tara → distribuim proporțional cu vânzările
   const cheltFaraTara = filteredC.filter(c => !c.tara || c.tara === '')
-  const totalCheltFaraTara = cheltFaraTara.reduce((s,c)=>s+Number(c.suma),0)
+  const totalCheltFaraTara = cheltFaraTara.reduce((s,c)=>s+(c.isNegativ?-Number(c.suma):Number(c.suma)),0)
 
   const profitPerTara = tari.map(t => {
     const vanzariTara = filteredV.filter(v=>v.canal==='emag'&&(t.tara==='RO'?(!v.tara||v.tara==='RO'):v.tara===t.tara))
-    const venit = vanzariTara.reduce((s,v)=>s+calcVanzareProfit(v,produse).venit,0)
-    const profitVanzari = vanzariTara.reduce((s,v)=>s+calcVanzareProfit(v,produse).profit,0)
-    // Cheltuieli specifice acestei țări
-    const cheltSpecifice = cheltCuTara.filter(c=>c.tara===t.tara).reduce((s,c)=>s+Number(c.suma),0)
+    const venit = vanzariTara.reduce((s,v)=>s+profitCache.get(v.id).venit,0)
+    // Marjă brută: venit - cost produs. Comisioanele vin din facturi reale (FC în cheltuieli per țară)
+    const profitVanzari = vanzariTara.reduce((s,v)=>{ const c=profitCache.get(v.id); return s+c.venit-c.cost },0)
+    // Cheltuieli specifice acestei țări (FCS/FCDP isNegativ → reduc cheltuielile)
+    const cheltSpecifice = cheltCuTara.filter(c=>c.tara===t.tara).reduce((s,c)=>s+(c.isNegativ?-Number(c.suma):Number(c.suma)),0)
     // Cheltuieli comune distribuite proporțional cu vânzările
     const proportie = totalVenitEmag > 0 ? venitPerTara[t.tara] / totalVenitEmag : (t.tara==='RO'?1:0)
     const cheltProp = totalCheltFaraTara * proportie
@@ -145,7 +147,7 @@ export default function DashboardPage() {
 
   const topProduse = Object.entries(filteredV.reduce((acc,v) => {
     if (!acc[v.produsId]) acc[v.produsId]={venit:0,profit:0,qty:0}
-    const c = calcVanzareProfit(v,produse)
+    const c = profitCache.get(v.id)
     acc[v.produsId].venit+=c.venit; acc[v.produsId].profit+=c.profit; acc[v.produsId].qty+=Number(v.cantitate)
     return acc
   },{})).map(([id,d]) => ({...d, name:produse.find(p=>p.id===id)?.numeBarrano||id})).sort((a,b)=>b.venit-a.venit).slice(0,5)
@@ -196,7 +198,7 @@ export default function DashboardPage() {
             <table style={{width:'100%',borderCollapse:'collapse'}}>
               <thead>
                 <tr style={{borderBottom:`1px solid ${BORDER}`}}>
-                  {['Piață','Vânzări','Cheltuieli','Profit vânzări','Profit net','Marjă'].map(h=>(
+                  {['Piață','Vânzări','Facturi eMAG','Marjă brută','Profit net','Marjă'].map(h=>(
                     <th key={h} style={{padding:'8px 16px',textAlign:h==='Piață'?'left':'right',fontSize:10,fontWeight:600,color:BEIGE,textTransform:'uppercase',letterSpacing:'0.08em'}}>{h}</th>
                   ))}
                 </tr>
@@ -212,10 +214,10 @@ export default function DashboardPage() {
                           <span style={{fontSize:13,fontWeight:500,color:B}}>{t.flag} {t.label}</span>
                         </div>
                       </td>
-                      <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,fontWeight:600,color:B,fontVariantNumeric:'tabular-nums'}}>{new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:0}).format(t.venit)}</td>
-                      <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,color:'#dc2626',fontVariantNumeric:'tabular-nums'}}>{new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:0}).format(t.chelt)}</td>
-                      <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,color:BEIGE,fontVariantNumeric:'tabular-nums'}}>{new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:0}).format(t.profitVanzari)}</td>
-                      <td style={{padding:'12px 16px',textAlign:'right',fontSize:13,fontWeight:700,color:t.profitNet>=0?'#16a34a':'#dc2626',fontVariantNumeric:'tabular-nums'}}>{new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:0}).format(t.profitNet)}</td>
+                      <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,fontWeight:600,color:B,fontVariantNumeric:'tabular-nums'}}>{formatRon0(t.venit)}</td>
+                      <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,color:'#dc2626',fontVariantNumeric:'tabular-nums'}}>{formatRon0(t.chelt)}</td>
+                      <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,color:BEIGE,fontVariantNumeric:'tabular-nums'}}>{formatRon0(t.profitVanzari)}</td>
+                      <td style={{padding:'12px 16px',textAlign:'right',fontSize:13,fontWeight:700,color:t.profitNet>=0?'#16a34a':'#dc2626',fontVariantNumeric:'tabular-nums'}}>{formatRon0(t.profitNet)}</td>
                       <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,fontWeight:600,color:marja>=20?'#16a34a':marja>=10?'#d97706':'#dc2626'}}>{marja.toFixed(1)}%</td>
                     </tr>
                   )
@@ -224,10 +226,10 @@ export default function DashboardPage() {
               <tfoot style={{borderTop:`2px solid ${BORDER}`,background:'#FAFAF8'}}>
                 <tr>
                   <td style={{padding:'12px 16px',fontSize:12,fontWeight:700,color:B}}>Total</td>
-                  <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,fontWeight:700,color:B,fontVariantNumeric:'tabular-nums'}}>{new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:0}).format(profitPerTara.reduce((s,t)=>s+t.venit,0))}</td>
-                  <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,fontWeight:700,color:'#dc2626',fontVariantNumeric:'tabular-nums'}}>{new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:0}).format(profitPerTara.reduce((s,t)=>s+t.chelt,0))}</td>
-                  <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,fontWeight:700,color:BEIGE,fontVariantNumeric:'tabular-nums'}}>{new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:0}).format(profitPerTara.reduce((s,t)=>s+t.profitVanzari,0))}</td>
-                  <td style={{padding:'12px 16px',textAlign:'right',fontSize:13,fontWeight:700,color:profitPerTara.reduce((s,t)=>s+t.profitNet,0)>=0?'#16a34a':'#dc2626',fontVariantNumeric:'tabular-nums'}}>{new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:0}).format(profitPerTara.reduce((s,t)=>s+t.profitNet,0))}</td>
+                  <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,fontWeight:700,color:B,fontVariantNumeric:'tabular-nums'}}>{formatRon0(profitPerTara.reduce((s,t)=>s+t.venit,0))}</td>
+                  <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,fontWeight:700,color:'#dc2626',fontVariantNumeric:'tabular-nums'}}>{formatRon0(profitPerTara.reduce((s,t)=>s+t.chelt,0))}</td>
+                  <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,fontWeight:700,color:BEIGE,fontVariantNumeric:'tabular-nums'}}>{formatRon0(profitPerTara.reduce((s,t)=>s+t.profitVanzari,0))}</td>
+                  <td style={{padding:'12px 16px',textAlign:'right',fontSize:13,fontWeight:700,color:profitPerTara.reduce((s,t)=>s+t.profitNet,0)>=0?'#16a34a':'#dc2626',fontVariantNumeric:'tabular-nums'}}>{formatRon0(profitPerTara.reduce((s,t)=>s+t.profitNet,0))}</td>
                   <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,fontWeight:700,color:BEIGE}}>{profitPerTara.reduce((s,t)=>s+t.venit,0)>0?((profitPerTara.reduce((s,t)=>s+t.profitNet,0)/profitPerTara.reduce((s,t)=>s+t.venit,0))*100).toFixed(1)+'%':'—'}</td>
                 </tr>
               </tfoot>

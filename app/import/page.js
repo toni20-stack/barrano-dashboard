@@ -165,8 +165,8 @@ function doImportSB(normale, storno, editNames) {
 
 function doImportEF(cheltuieli, incasari) {
   initStorage()
-  const chNoi=cheltuieli.map(c=>({id:uuidv4(),categorie:c.categorie,suma:Math.abs(c.suma),data:c.data,descriere:`${c.label} — ${c.document}`,sursa:'emag',tip:c.tip,isNegativ:c.isNegativ}))
-  const iNoi=incasari.map(i=>({id:uuidv4(),tip:i.tip,label:i.label,suma:i.suma,data:i.data,document:i.document,sursa:'emag',isNegativ:i.isNegativ}))
+  const chNoi=cheltuieli.map(c=>({id:uuidv4(),categorie:c.categorie,suma:Math.abs(c.suma),data:c.data,descriere:`${c.label} — ${c.document}`,sursa:'emag',tip:c.tip,isNegativ:c.isNegativ,tara:c.tara||''}))
+  const iNoi=incasari.map(i=>({id:uuidv4(),tip:i.tip,label:i.label,suma:i.suma,data:i.data,document:i.document,sursa:'emag',isNegativ:i.isNegativ,tara:i.tara||''}))
   saveCheltuieli([...getCheltuieli(),...chNoi])
   saveIncasari([...getIncasari(),...iNoi])
   return {cheltuieli:chNoi.length,incasari:iNoi.length}
