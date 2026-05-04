@@ -457,6 +457,25 @@ export default function ImportPage() {
 
             <LegendaFacturi open={legendOpen} onToggle={() => setLegendOpen(o => !o)}/>
 
+            <div className="card p-4 space-y-2">
+              <p className="text-xs font-bold text-slate-600">Șterge înregistrări importate greșit (fără conversie valutară):</p>
+              <div className="flex gap-2 flex-wrap">
+                {[{tara:'BG',flag:'🇧🇬',label:'Bulgaria',color:'text-amber-700 border-amber-200 hover:bg-amber-50'},
+                  {tara:'HU',flag:'🇭🇺',label:'Ungaria',color:'text-purple-700 border-purple-200 hover:bg-purple-50'}
+                ].map(({tara,flag,label,color})=>(
+                  <button key={tara} className={`text-xs font-bold border rounded-lg px-3 py-1.5 transition-all ${color}`}
+                    onClick={()=>{
+                      if(!window.confirm(`Ștergi toate cheltuielile și încasările eMAG ${label}? Apoi reimportă cu cursul corect.`)) return
+                      saveCheltuieli(getCheltuieli().filter(c=>!(c.tara===tara&&c.sursa==='emag')))
+                      saveIncasari(getIncasari().filter(i=>!(i.tara===tara&&i.sursa==='emag')))
+                      alert(`Înregistrările eMAG ${label} au fost șterse. Reimportă fișierul cu cursul corect.`)
+                    }}>
+                    {flag} Șterge eMAG {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {!efData && !efResult && <DropZone onFile={handleEF} loading={loading} accept=".xlsx,.xls" hint="Export facturi eMAG Seller (.xlsx)"/>}
 
             {efResult && <DoneCard title="eMAG Facturi importate!"
