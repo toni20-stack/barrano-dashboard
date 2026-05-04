@@ -87,7 +87,7 @@ export default function DashboardPage() {
   const totalProfit = useMemo(() => filteredV.reduce((s,v) => { const c=profitCache.get(v.id); return s+c.venit-c.cost }, 0), [filteredV, profitCache])
   const totalChelt = filteredC.reduce((s,c) => s + (c.isNegativ ? -Number(c.suma) : Number(c.suma)), 0)
   const profitNet = totalProfit - totalChelt
-  const marjaGlobala = totalVenit > 0 ? (totalProfit/totalVenit)*100 : 0
+  const marjaGlobala = totalVenit > 0 ? (profitNet/totalVenit)*100 : 0
 
   const luniMap = {}
   filteredV.forEach(v => {
