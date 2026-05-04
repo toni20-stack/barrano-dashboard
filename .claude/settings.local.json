@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bash push.sh \"fix: comision din facturi reale \\(FC\\) in loc de 26% estimat - KPI-uri globale + isNegativ cheltuieli\")"
+    ]
+  }
+}
