@@ -465,10 +465,9 @@ export default function ImportPage() {
                 ].map(({tara,flag,label,color})=>(
                   <button key={tara} className={`text-xs font-bold border rounded-lg px-3 py-1.5 transition-all ${color}`}
                     onClick={()=>{
-                      if(!window.confirm(`Ștergi toate cheltuielile și încasările eMAG ${label}? Apoi reimportă cu cursul corect.`)) return
+                      if(!window.confirm(`Ștergi toate cheltuielile eMAG ${label}? Încasările rămân intacte. Apoi reimportă cu cursul corect.`)) return
                       saveCheltuieli(getCheltuieli().filter(c=>!(c.tara===tara&&c.sursa==='emag')))
-                      saveIncasari(getIncasari().filter(i=>!(i.tara===tara&&i.sursa==='emag')))
-                      alert(`Înregistrările eMAG ${label} au fost șterse. Reimportă fișierul cu cursul corect.`)
+                      alert(`Cheltuielile eMAG ${label} au fost șterse. Reimportă fișierul cu cursul corect.`)
                     }}>
                     {flag} Șterge eMAG {label}
                   </button>
