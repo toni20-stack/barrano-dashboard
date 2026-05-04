@@ -292,6 +292,7 @@ export default function ImportPage() {
 
   // eMAG Facturi
   const [efData,setEfData]=useState(null)
+  const [efTara,setEfTara]=useState('RO')
   const [efResult,setEfResult]=useState(null)
 
   // eMAG Ads
@@ -310,7 +311,7 @@ export default function ImportPage() {
   const handleEF=file=>wrap(async()=>{
     const buf=await file.arrayBuffer()
     const result=parseEmagFacturi(new Uint8Array(buf))
-    setEfData(result); setEfResult(null)
+    setEfData(result); setEfTara(result.tara); setEfResult(null)
   })
 
   const handleAds=file=>wrap(async()=>{
@@ -464,9 +465,17 @@ export default function ImportPage() {
                 <div className="card overflow-hidden">
                   <div className="px-4 py-2.5 bg-orange-50 border-b border-orange-100 flex items-center justify-between">
                   <p className="text-[11px] font-bold text-orange-700">Cheltuieli eMAG ({efData.cheltuieli.length})</p>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{background:efData.tara==='RO'?'#dbeafe':efData.tara==='BG'?'#fef3c7':'#f3e8ff',color:efData.tara==='RO'?'#1d4ed8':efData.tara==='BG'?'#92400e':'#7e22ce'}}>
-                    {efData.tara==='RO'?'🇷🇴 România':efData.tara==='BG'?'🇧🇬 Bulgaria':'🇭🇺 Ungaria'} — detectat automat
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400">Piață:</span>
+                    <select value={efTara} onChange={e=>setEfTara(e.target.value)}
+                      className="text-[11px] font-bold border border-slate-200 rounded-lg px-2 py-1 bg-white cursor-pointer">
+                      <option value="RO">🇷🇴 România</option>
+                      <option value="BG">🇧🇬 Bulgaria</option>
+                      <option value="HU">🇭🇺 Ungaria</option>
+                    </select>
+                    {efTara!==efData.tara&&<span className="text-[10px] text-amber-600 font-semibold">modificat manual</span>}
+                    {efTara===efData.tara&&<span className="text-[10px] text-slate-400">detectat automat</span>}
+                  </div>
                 </div>
                   <div className="overflow-x-auto max-h-56 overflow-y-auto">
                     <table className="w-full">
@@ -513,7 +522,7 @@ export default function ImportPage() {
 
                 <div className="flex gap-3 justify-end">
                   <button className="btn-secondary" onClick={()=>setEfData(null)}>← Alt fișier</button>
-                  <button className="btn-primary" onClick={()=>setEfResult(doImportEF(efData.cheltuieli,efData.incasari))}><CheckCircle size={14}/> Importă tot</button>
+                  <button className="btn-primary" onClick={()=>setEfResult(doImportEF(efData.cheltuieli.map(c=>({...c,tara:efTara})),efData.incasari.map(i=>({...i,tara:efTara}))))}><CheckCircle size={14}/> Importă tot</button>
                 </div>
               </div>
             )}
