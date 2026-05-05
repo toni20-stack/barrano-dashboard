@@ -40,6 +40,7 @@ function parseSmartBill(buf) {
     produs: headers.findIndex(h=>h==='Produs'),
     cod: headers.findIndex(h=>h.includes('Cod Produs')),
     client: headers.findIndex(h=>h==='Client'),
+    cif: headers.findIndex(h=>h==='CIF'||h.toLowerCase().includes('cod fiscal')||h==='CUI'),
     judet: headers.findIndex(h=>h.includes('Judet')),
     data: headers.findIndex(h=>h==='Data'),
     tipDoc: headers.findIndex(h=>h.includes('Tip doc')),
@@ -55,7 +56,8 @@ function parseSmartBill(buf) {
     const tip=String(row[idx.tipDoc]||'').toLowerCase()
     const obj={
       _id:`sb_${i}`, produs, cod:String(row[idx.cod]||'').trim(),
-      client:String(row[idx.client]||'').trim(), judet:String(row[idx.judet]||'').trim(),
+      client:String(row[idx.client]||'').trim(), cif:String(idx.cif>=0?row[idx.cif]||'':'').trim(),
+      judet:String(row[idx.judet]||'').trim(),
       tara:detectTara(String(row[idx.judet]||'')), data:String(row[idx.data]||'').trim(),
       document:String(row[idx.document]||'').trim(),
       cantitate:Math.abs(parseFloat(row[idx.cantitate])||0),
@@ -156,8 +158,8 @@ function doImportSB(normale, storno, editNames) {
       noi.push(p); map[n]=p.id
     }
   })
-  const vNoi=normale.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:'persoana_fizica',fisiere:[],sursa:'smartbill',document:r.document,tara:r.tara}))
-  const sNoi=storno.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:'persoana_fizica',fisiere:[],sursa:'smartbill_storno',document:r.document,tara:r.tara,isStorno:true}))
+  const vNoi=normale.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:r.cif?'firma':'persoana_fizica',fisiere:[],sursa:'smartbill',document:r.document,tara:r.tara}))
+  const sNoi=storno.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:r.cif?'firma':'persoana_fizica',fisiere:[],sursa:'smartbill_storno',document:r.document,tara:r.tara,isStorno:true}))
   saveProduse([...existProduse,...noi])
   saveVanzari([...existVanzari,...vNoi,...sNoi])
   return {vanzari:vNoi.length,storno:sNoi.length,produse:noi.length}
