@@ -191,50 +191,37 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Profit per tara */}
-        <div className="card" style={{padding:24}}>
-          <p style={{fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:17,fontWeight:500,color:B,margin:'0 0 20px'}}>Profit net per piață</p>
-          <div style={{overflowX:'auto'}}>
-            <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead>
-                <tr style={{borderBottom:`1px solid ${BORDER}`}}>
-                  {['Piață','Vânzări','Facturi eMAG','Marjă brută','Profit net','Marjă'].map(h=>(
-                    <th key={h} style={{padding:'8px 16px',textAlign:h==='Piață'?'left':'right',fontSize:10,fontWeight:600,color:BEIGE,textTransform:'uppercase',letterSpacing:'0.08em'}}>{h}</th>
+        {/* Profit per piață — 3 panouri separate */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14}}>
+          {profitPerTara.map(t=>{
+            const marja=t.venit>0?(t.profitNet/t.venit)*100:0
+            const randuri=[
+              ['Vânzări',formatRon0(t.venit),B],
+              ['Cheltuieli eMAG',formatRon0(t.chelt),'#dc2626'],
+              ['Marjă brută',formatRon0(t.profitVanzari),BEIGE],
+              ['Profit net',formatRon0(t.profitNet),t.profitNet>=0?'#16a34a':'#dc2626'],
+            ]
+            return (
+              <div key={t.tara} className="card" style={{padding:24}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:18,paddingBottom:14,borderBottom:`1px solid ${BORDER}`}}>
+                  <div style={{width:10,height:10,borderRadius:'50%',background:t.fill,flexShrink:0}}/>
+                  <p style={{fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:16,fontWeight:500,color:B,margin:0}}>{t.flag} {t.label}</p>
+                </div>
+                <div style={{display:'flex',flexDirection:'column',gap:11}}>
+                  {randuri.map(([label,value,color])=>(
+                    <div key={label} style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <span style={{fontSize:11,color:BEIGE,fontWeight:500}}>{label}</span>
+                      <span style={{fontSize:13,fontWeight:700,color,fontVariantNumeric:'tabular-nums'}}>{value}</span>
+                    </div>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {profitPerTara.filter(t => t.venit > 0 || t.chelt > 0).map((t,i)=>{
-                  const marja = t.venit>0?(t.profitNet/t.venit)*100:0
-                  return (
-                    <tr key={i} style={{borderBottom:`1px solid #F5F0E8`}}>
-                      <td style={{padding:'12px 16px'}}>
-                        <div style={{display:'flex',alignItems:'center',gap:8}}>
-                          <div style={{width:10,height:10,borderRadius:'50%',background:t.fill,flexShrink:0}}/>
-                          <span style={{fontSize:13,fontWeight:500,color:B}}>{t.flag} {t.label}</span>
-                        </div>
-                      </td>
-                      <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,fontWeight:600,color:B,fontVariantNumeric:'tabular-nums'}}>{formatRon0(t.venit)}</td>
-                      <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,color:'#dc2626',fontVariantNumeric:'tabular-nums'}}>{formatRon0(t.chelt)}</td>
-                      <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,color:BEIGE,fontVariantNumeric:'tabular-nums'}}>{formatRon0(t.profitVanzari)}</td>
-                      <td style={{padding:'12px 16px',textAlign:'right',fontSize:13,fontWeight:700,color:t.profitNet>=0?'#16a34a':'#dc2626',fontVariantNumeric:'tabular-nums'}}>{formatRon0(t.profitNet)}</td>
-                      <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,fontWeight:600,color:marja>=20?'#16a34a':marja>=10?'#d97706':'#dc2626'}}>{marja.toFixed(1)}%</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-              <tfoot style={{borderTop:`2px solid ${BORDER}`,background:'#FAFAF8'}}>
-                <tr>
-                  <td style={{padding:'12px 16px',fontSize:12,fontWeight:700,color:B}}>Total</td>
-                  <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,fontWeight:700,color:B,fontVariantNumeric:'tabular-nums'}}>{formatRon0(profitPerTara.reduce((s,t)=>s+t.venit,0))}</td>
-                  <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,fontWeight:700,color:'#dc2626',fontVariantNumeric:'tabular-nums'}}>{formatRon0(profitPerTara.reduce((s,t)=>s+t.chelt,0))}</td>
-                  <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,fontWeight:700,color:BEIGE,fontVariantNumeric:'tabular-nums'}}>{formatRon0(profitPerTara.reduce((s,t)=>s+t.profitVanzari,0))}</td>
-                  <td style={{padding:'12px 16px',textAlign:'right',fontSize:13,fontWeight:700,color:profitPerTara.reduce((s,t)=>s+t.profitNet,0)>=0?'#16a34a':'#dc2626',fontVariantNumeric:'tabular-nums'}}>{formatRon0(profitPerTara.reduce((s,t)=>s+t.profitNet,0))}</td>
-                  <td style={{padding:'12px 16px',textAlign:'right',fontSize:12,fontWeight:700,color:BEIGE}}>{profitPerTara.reduce((s,t)=>s+t.venit,0)>0?((profitPerTara.reduce((s,t)=>s+t.profitNet,0)/profitPerTara.reduce((s,t)=>s+t.venit,0))*100).toFixed(1)+'%':'—'}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                  <div style={{borderTop:`1px solid ${BORDER}`,paddingTop:11,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <span style={{fontSize:11,color:BEIGE,fontWeight:500}}>Marjă netă</span>
+                    <span style={{fontSize:18,fontWeight:800,color:marja>=20?'#16a34a':marja>=10?'#d97706':'#dc2626'}}>{t.venit>0?marja.toFixed(1)+'%':'—'}</span>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
 
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
