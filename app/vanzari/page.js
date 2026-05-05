@@ -89,7 +89,7 @@ export default function VanzariPage() {
         <div className="flex gap-3 flex-wrap items-center">
           <input className="input max-w-xs" placeholder="Caută produs, județ, oraș..." value={search} onChange={e => setSearch(e.target.value)} />
           <div className="flex gap-1">
-            {[['', 'Toate canalele'], ['emag', 'eMAG'], ['site', 'Site'], ['altele', 'Altele']].map(([val, lbl]) => (
+            {[['', 'Toate canalele'], ['emag', 'eMAG'], ['site', 'Site']].map(([val, lbl]) => (
               <button key={val} onClick={() => setFilterCanal(val)}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${filterCanal === val ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
                 {lbl}

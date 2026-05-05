@@ -98,7 +98,7 @@ export default function VanzareModal({ open, onClose, onSave, vanzare, produse }
         <div>
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Canal vânzare</p>
           <div className="flex gap-2 mb-3">
-            {[['emag', 'eMAG'], ['site', 'Site propriu'], ['altele', 'Altele']].map(([val, lbl]) => (
+            {[['emag', 'eMAG'], ['site', 'Site propriu']].map(([val, lbl]) => (
               <button
                 key={val}
                 onClick={() => set('canal', val)}
