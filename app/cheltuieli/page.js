@@ -27,6 +27,7 @@ export default function CheltuieliPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [filterCat, setFilterCat] = useState('')
+  const [filterTara, setFilterTara] = useState('')
 
   const load = useCallback(() => { initStorage(); setCheltuieli(getCheltuieli()) }, [])
   useEffect(() => { load() }, [load])
@@ -40,6 +41,7 @@ export default function CheltuieliPage() {
   const sorted = [...cheltuieli].sort((a, b) => b.data.localeCompare(a.data))
   const filtered = filterByDateRange(sorted, 'data', dateFrom, dateTo)
     .filter(c => !filterCat || c.categorie === filterCat)
+    .filter(c => !filterTara || (filterTara === 'RO' ? (!c.tara || c.tara === 'RO') : c.tara === filterTara))
 
   const total = filtered.reduce((s, c) => s + Number(c.suma), 0)
 
@@ -66,6 +68,16 @@ export default function CheltuieliPage() {
       </Topbar>
 
       <div className="p-6 space-y-5">
+        {/* Filtru piață */}
+        <div className="flex gap-1 flex-wrap">
+          {[['', 'Toate piețele'], ['RO', '🇷🇴 România'], ['BG', '🇧🇬 Bulgaria'], ['HU', '🇭🇺 Ungaria']].map(([val, lbl]) => (
+            <button key={val} onClick={() => setFilterTara(val)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${filterTara === val ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+
         {/* Sumar per categorie */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
           {CATEGORII_CHELTUIELI.map(cat => {

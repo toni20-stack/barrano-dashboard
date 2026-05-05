@@ -22,6 +22,7 @@ export default function AnalizaPage() {
   const [dateTo,     setDateTo]     = useState(new Date().toISOString().slice(0,10))
   const [tab,        setTab]        = useState('performanta')
   const [sortBy,     setSortBy]     = useState('venit')
+  const [filterTara, setFilterTara] = useState('')
 
   const load = useCallback(() => {
     initStorage()
@@ -32,7 +33,9 @@ export default function AnalizaPage() {
   useEffect(() => { load() }, [load])
 
   const filtered   = filterByDateRange(vanzari,    'data', dateFrom, dateTo)
+    .filter(v => !filterTara || (filterTara === 'RO' ? (!v.tara || v.tara === 'RO') : v.tara === filterTara))
   const filteredCh = filterByDateRange(cheltuieli, 'data', dateFrom, dateTo)
+    .filter(c => !filterTara || (filterTara === 'RO' ? (!c.tara || c.tara === 'RO') : c.tara === filterTara))
 
   // ── PERFORMANȚĂ ──────────────────────────────────────────
   const produsStats = produse.map((p, i) => {
@@ -124,6 +127,16 @@ export default function AnalizaPage() {
         dateFrom={dateFrom} dateTo={dateTo} onDateFrom={setDateFrom} onDateTo={setDateTo}/>
 
       <div className="p-6 space-y-5">
+        {/* Filtru piață */}
+        <div className="flex gap-1 flex-wrap">
+          {[['', 'Toate piețele'], ['RO', '🇷🇴 România'], ['BG', '🇧🇬 Bulgaria'], ['HU', '🇭🇺 Ungaria']].map(([val, lbl]) => (
+            <button key={val} onClick={() => setFilterTara(val)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${filterTara === val ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+
         {/* Tab selector */}
         <div className="flex gap-2">
           {TABS.map(({ id, label }) => (

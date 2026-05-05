@@ -18,6 +18,7 @@ export default function VanzariPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [filterCanal, setFilterCanal] = useState('')
+  const [filterTara, setFilterTara] = useState('')
   const [search, setSearch] = useState('')
 
   const load = useCallback(() => {
@@ -36,6 +37,7 @@ export default function VanzariPage() {
   const sorted = [...vanzari].sort((a, b) => b.data.localeCompare(a.data))
   const filtered = filterByDateRange(sorted, 'data', dateFrom, dateTo)
     .filter(v => !filterCanal || v.canal === filterCanal)
+    .filter(v => !filterTara || (filterTara === 'RO' ? (!v.tara || v.tara === 'RO') : v.tara === filterTara))
     .filter(v => {
       if (!search) return true
       const p = produse.find(p => p.id === v.produsId)
@@ -88,11 +90,16 @@ export default function VanzariPage() {
           <input className="input max-w-xs" placeholder="Caută produs, județ, oraș..." value={search} onChange={e => setSearch(e.target.value)} />
           <div className="flex gap-1">
             {[['', 'Toate canalele'], ['emag', 'eMAG'], ['site', 'Site'], ['altele', 'Altele']].map(([val, lbl]) => (
-              <button
-                key={val}
-                onClick={() => setFilterCanal(val)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${filterCanal === val ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
-              >
+              <button key={val} onClick={() => setFilterCanal(val)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${filterCanal === val ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
+                {lbl}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-1">
+            {[['', 'Toate piețele'], ['RO', '🇷🇴 România'], ['BG', '🇧🇬 Bulgaria'], ['HU', '🇭🇺 Ungaria']].map(([val, lbl]) => (
+              <button key={val} onClick={() => setFilterTara(val)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${filterTara === val ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
                 {lbl}
               </button>
             ))}

@@ -13,6 +13,7 @@ export default function ClientiPage() {
   const [produse, setProduse] = useState([])
   const [dateFrom, setDateFrom] = useState('2025-01-01')
   const [dateTo, setDateTo] = useState(new Date().toISOString().slice(0,10))
+  const [filterTara, setFilterTara] = useState('')
 
   const load = useCallback(() => {
     initStorage()
@@ -22,6 +23,7 @@ export default function ClientiPage() {
   useEffect(() => { load() }, [load])
 
   const filtered = filterByDateRange(vanzari, 'data', dateFrom, dateTo)
+    .filter(v => !filterTara || (filterTara === 'RO' ? (!v.tara || v.tara === 'RO') : v.tara === filterTara))
 
   // Urban vs Rural
   const urbanCount = filtered.filter(v => v.mediu === 'urban').length
@@ -67,6 +69,16 @@ export default function ClientiPage() {
       />
 
       <div className="p-6 space-y-5">
+        {/* Filtru piață */}
+        <div className="flex gap-1 flex-wrap">
+          {[['', 'Toate piețele'], ['RO', '🇷🇴 România'], ['BG', '🇧🇬 Bulgaria'], ['HU', '🇭🇺 Ungaria']].map(([val, lbl]) => (
+            <button key={val} onClick={() => setFilterTara(val)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${filterTara === val ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+
         {/* KPI */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
