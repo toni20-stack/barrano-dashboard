@@ -370,6 +370,20 @@ export default function ImportPage() {
               <InfoBox color="blue">Se importă vânzările ca tranzacții + stornourile ca retururi separate. Produsele inexistente se creează automat (editabile). Taxele de livrare sunt ignorate automat.</InfoBox>
             </div>
 
+            <div className="card p-4 space-y-2">
+              <p className="text-xs font-bold text-slate-600">Șterge vânzările SmartBill importate anterior (pentru reimport):</p>
+              <button className="text-xs font-bold border border-red-200 text-red-700 rounded-lg px-3 py-1.5 hover:bg-red-50 transition-all"
+                onClick={()=>{
+                  if(!window.confirm('Ștergi toate vânzările și retururile importate din SmartBill? Cheltuielile și încasările eMAG rămân intacte.')) return
+                  const vz = getVanzari().filter(v => v.sursa !== 'smartbill' && v.sursa !== 'smartbill_storno')
+                  saveVanzari(vz)
+                  setSbData(null); setSbResult(null)
+                  alert('Vânzările SmartBill au fost șterse. Acum poți reimporta fișierul.')
+                }}>
+                🗑 Șterge vânzări SmartBill
+              </button>
+            </div>
+
             {!sbData && !sbResult && <DropZone onFile={handleSB} loading={loading} accept=".xls,.xlsx" hint="Raport SmartBill — Vânzări pe produse (.xls / .xlsx)"/>}
 
             {sbResult && <DoneCard title="SmartBill importat cu succes!"
