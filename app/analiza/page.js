@@ -105,7 +105,7 @@ export default function AnalizaPage() {
     total: d.valSB + d.valFY + d.valFCS,
   }))
 
-  // Retururi per județ + urban/rural
+  // Retururi per județ (urban/rural nu e disponibil din SmartBill storno)
   const stornoByJudet = stornoSB.reduce((acc, v) => {
     const j = v.judet || '—'
     if (!acc[j]) acc[j] = { judet:j, count:0, val:0 }
@@ -113,10 +113,6 @@ export default function AnalizaPage() {
     return acc
   }, {})
   const topJudeteStorno = Object.values(stornoByJudet).filter(j => j.judet !== '—').sort((a,b) => b.count - a.count).slice(0, 10)
-  const stornoUrban    = stornoSB.filter(v => v.mediu === 'urban').length
-  const stornoRural    = stornoSB.filter(v => v.mediu === 'rural').length
-  const stornoUrbanVal = stornoSB.filter(v => v.mediu === 'urban').reduce((s,v) => s + v.cantitate * v.pretUnitar, 0)
-  const stornoRuralVal = stornoSB.filter(v => v.mediu === 'rural').reduce((s,v) => s + v.cantitate * v.pretUnitar, 0)
 
   // KPIs retururi
   const totalValSB  = stornoSB.reduce((s,v) => s + v.cantitate * v.pretUnitar, 0)
@@ -397,52 +393,19 @@ export default function AnalizaPage() {
               </div>
             )}
 
-            {/* Distribuție geografică retururi */}
-            {stornoSB.length > 0 && (
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-                {/* Urban vs Rural */}
-                <div className="card p-5">
-                  <p className="text-sm font-bold text-slate-800 mb-4">Urban vs Rural — Retururi</p>
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    {[['Urban', stornoUrban, stornoUrbanVal, '#8b5cf6'], ['Rural', stornoRural, stornoRuralVal, '#f59e0b']].map(([lbl,cnt,val,c]) => (
-                      <div key={lbl} className="bg-slate-50 rounded-xl p-3 text-center">
-                        <div className="w-3 h-3 rounded-full mx-auto mb-1" style={{backgroundColor:c}} />
-                        <p className="text-xs text-slate-500 font-semibold">{lbl}</p>
-                        <p className="text-xl font-black text-slate-900">{cnt}</p>
-                        <p className="text-xs text-slate-400">{formatRon(val)}</p>
-                      </div>
-                    ))}
-                  </div>
-                  {(stornoUrbanVal + stornoRuralVal) > 0 && (
-                    <ResponsiveContainer width="100%" height={160}>
-                      <PieChart>
-                        <Pie data={[{name:'Urban',value:stornoUrbanVal,fill:'#8b5cf6'},{name:'Rural',value:stornoRuralVal,fill:'#f59e0b'}].filter(d=>d.value>0)}
-                          cx="50%" cy="50%" outerRadius={65} dataKey="value" nameKey="name"
-                          label={({name,percent}) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false}>
-                          {[{fill:'#8b5cf6'},{fill:'#f59e0b'}].map((e,i) => <Cell key={i} fill={e.fill}/>)}
-                        </Pie>
-                        <Tooltip formatter={v => formatRon(v)} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-
-                {/* Top județe retururi */}
-                <div className="card p-5">
-                  <p className="text-sm font-bold text-slate-800 mb-4">Top județe după număr retururi</p>
-                  {topJudeteStorno.length === 0
-                    ? <p className="text-xs text-slate-400 text-center py-8">Fără date județ în stornouri</p>
-                    : <ResponsiveContainer width="100%" height={240}>
-                        <BarChart data={topJudeteStorno} layout="vertical">
-                          <CartesianGrid strokeDasharray="3 3" stroke="#fef2f2" horizontal={false}/>
-                          <XAxis type="number" tick={{fontSize:10}} allowDecimals={false}/>
-                          <YAxis type="category" dataKey="judet" tick={{fontSize:10}} width={90}/>
-                          <Tooltip formatter={(v,n) => [n==='count'?`${v} retururi`:formatRon(v)]} />
-                          <Bar dataKey="count" fill="#ef4444" radius={[0,4,4,0]} name="count"/>
-                        </BarChart>
-                      </ResponsiveContainer>
-                  }
-                </div>
+            {/* Top județe retururi */}
+            {stornoSB.length > 0 && topJudeteStorno.length > 0 && (
+              <div className="card p-5">
+                <p className="text-sm font-bold text-slate-800 mb-4">Top județe după număr retururi</p>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={topJudeteStorno} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#fef2f2" horizontal={false}/>
+                    <XAxis type="number" tick={{fontSize:10}} allowDecimals={false}/>
+                    <YAxis type="category" dataKey="judet" tick={{fontSize:10}} width={90}/>
+                    <Tooltip formatter={(v,n) => [n==='count'?`${v} retururi`:formatRon(v)]} />
+                    <Bar dataKey="count" fill="#ef4444" radius={[0,4,4,0]} name="count"/>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             )}
 

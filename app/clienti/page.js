@@ -50,11 +50,7 @@ export default function ClientiPage() {
   const tipPie   = [{ name:'Persoană fizică', value:pfVenit, fill:'#3b82f6' }, { name:'Firmă', value:firmaVenit, fill:'#10b981' }].filter(d => d.value > 0)
 
   // ── RETURURI ─────────────────────────────────────────────────
-  const stornoUrban    = stornoList.filter(v => v.mediu === 'urban').length
-  const stornoRural    = stornoList.filter(v => v.mediu === 'rural').length
-  const stornoUrbanVal = stornoList.filter(v => v.mediu === 'urban').reduce((s,v) => s + v.cantitate * v.pretUnitar, 0)
-  const stornoRuralVal = stornoList.filter(v => v.mediu === 'rural').reduce((s,v) => s + v.cantitate * v.pretUnitar, 0)
-  const stornoPie = [{ name:'Urban', value:stornoUrbanVal, fill:'#8b5cf6' }, { name:'Rural', value:stornoRuralVal, fill:'#f59e0b' }].filter(d => d.value > 0)
+  // Urban/Rural nu e disponibil din SmartBill storno (câmpul e hardcodat)
 
   const genderCounts = stornoList.reduce((acc,v) => { const g = detectGender(v.oras); if(g==='F') acc.F++; else acc.M++; return acc }, { F:0, M:0 })
   const genderPie = [{ name:'Feminin (estimat)', value:genderCounts.F, fill:'#ec4899' }, { name:'Masculin (estimat)', value:genderCounts.M, fill:'#3b82f6' }].filter(d => d.value > 0)
@@ -79,7 +75,7 @@ export default function ClientiPage() {
   })
   const topOraseStorno = Object.values(stornoByOras).filter(o => o.oras !== '—').sort((a,b) => b.count - a.count).slice(0, 10)
 
-  // Clienți repetitivi (același client a returnat de 2+ ori)
+  // Top 10 clienți după retururi
   const stornoByNume = {}
   stornoList.forEach(v => {
     const n = v.oras || '—'
@@ -88,7 +84,7 @@ export default function ClientiPage() {
     stornoByNume[n].count += 1
     stornoByNume[n].val += v.cantitate * v.pretUnitar
   })
-  const clientiRepetitivi = Object.values(stornoByNume).filter(c => c.count >= 2).sort((a,b) => b.count - a.count).slice(0, 15)
+  const topClientiStorno = Object.values(stornoByNume).sort((a,b) => b.count - a.count || b.val - a.val).slice(0, 10)
 
   const PieCard = ({ title, subtitle, data }) => (
     <div className="card p-5">
@@ -211,12 +207,11 @@ export default function ClientiPage() {
           stornoList.length === 0
             ? <div className="card p-10"><EmptyState icon={RotateCcw} title="Niciun retur în perioada selectată" /></div>
             : <>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {[
                     { lbl:'Total retururi', val: stornoList.length },
-                    { lbl:'Urban', val:`${stornoUrban} (${stornoList.length>0?((stornoUrban/stornoList.length)*100).toFixed(0):0}%)` },
-                    { lbl:'Rural', val:`${stornoRural} (${stornoList.length>0?((stornoRural/stornoList.length)*100).toFixed(0):0}%)` },
-                    { lbl:'Clienți repetitivi', val: clientiRepetitivi.length },
+                    { lbl:'Județe afectate', val: topJudeteStorno.length },
+                    { lbl:'Clienți unici', val: Object.keys(stornoByNume).length },
                   ].map(({lbl,val}) => (
                     <div key={lbl} className="card p-4">
                       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{lbl}</p>
@@ -225,8 +220,7 @@ export default function ClientiPage() {
                   ))}
                 </div>
 
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-                  <PieCard title="Urban vs Rural — Retururi" data={stornoPie} />
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
                   <PieCard title="Gen client — Retururi" subtitle="estimat din prenume" data={genderPie} />
                   <div className="card p-5">
                     <p className="text-sm font-bold text-slate-800 mb-4">Top județe — Retururi</p>
@@ -270,11 +264,11 @@ export default function ClientiPage() {
                   </div>
                 )}
 
-                {clientiRepetitivi.length > 0 && (
+                {topClientiStorno.length > 0 && (
                   <div className="card overflow-hidden">
                     <div className="px-5 py-4 border-b border-red-100 bg-red-50">
-                      <p className="text-sm font-bold text-red-700">⚠️ Clienți cu retururi repetate</p>
-                      <p className="text-xs text-red-500 mt-0.5">Același client a returnat de 2 sau mai multe ori</p>
+                      <p className="text-sm font-bold text-red-700">Top 10 clienți după retururi</p>
+                      <p className="text-xs text-red-500 mt-0.5">Sortați după număr retururi, apoi după valoare</p>
                     </div>
                     <table className="w-full">
                       <thead className="bg-slate-50 border-b border-slate-200">
@@ -285,12 +279,15 @@ export default function ClientiPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {clientiRepetitivi.map((c,i) => (
+                        {topClientiStorno.map((c,i) => (
                           <tr key={i} className="table-row">
                             <td className="table-cell text-slate-400 text-xs">{i+1}</td>
                             <td className="table-cell font-medium text-slate-900">{c.nume}</td>
                             <td className="table-cell text-sm">{c.gender==='F' ? '👩 Feminin' : '👨 Masculin'}</td>
-                            <td className="table-cell"><span className="font-black text-red-500 text-lg">{c.count}×</span></td>
+                            <td className="table-cell">
+                              <span className={`font-black text-lg ${c.count >= 2 ? 'text-red-500' : 'text-slate-700'}`}>{c.count}×</span>
+                              {c.count >= 2 && <span className="text-[10px] text-red-400 ml-1">repetat</span>}
+                            </td>
                             <td className="table-cell font-mono font-semibold text-red-500">{formatRon(c.val)}</td>
                           </tr>
                         ))}
