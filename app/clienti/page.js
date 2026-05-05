@@ -46,8 +46,22 @@ export default function ClientiPage() {
     .map(([judet, vs]) => ({ judet: judet === 'necunoscut' ? '—' : judet, venit: vs.reduce((s,v) => s + calcVanzareProfit(v, produse).venit, 0), tranzactii: vs.length }))
     .filter(j => j.judet !== '—').sort((a,b) => b.venit - a.venit).slice(0, 10)
 
-  const mediuPie = [{ name:'Urban', value:urbanVenit, fill:'#8b5cf6' }, { name:'Rural', value:ruralVenit, fill:'#f59e0b' }].filter(d => d.value > 0)
-  const tipPie   = [{ name:'Persoană fizică', value:pfVenit, fill:'#3b82f6' }, { name:'Firmă', value:firmaVenit, fill:'#10b981' }].filter(d => d.value > 0)
+  const tipPie = [{ name:'Persoană fizică', value:pfVenit, fill:'#3b82f6' }, { name:'Firmă', value:firmaVenit, fill:'#10b981' }].filter(d => d.value > 0)
+
+  // Gen cumpărători (din câmpul oras = nume client SmartBill)
+  const genderVanzari = filtered.reduce((acc,v) => { const g = detectGender(v.oras); if(g==='F') acc.F++; else acc.M++; return acc }, { F:0, M:0 })
+  const genderPieVanzari = [{ name:'Feminin (estimat)', value:genderVanzari.F, fill:'#ec4899' }, { name:'Masculin (estimat)', value:genderVanzari.M, fill:'#3b82f6' }].filter(d => d.value > 0)
+
+  // Top 10 clienți cumpărători
+  const clientiByNume = {}
+  filtered.forEach(v => {
+    const n = v.oras || '—'
+    if (n === '—') return
+    if (!clientiByNume[n]) clientiByNume[n] = { nume:n, count:0, val:0, gender:detectGender(n) }
+    clientiByNume[n].count += 1
+    clientiByNume[n].val += calcVanzareProfit(v, produse).venit
+  })
+  const topClientiCumparatori = Object.values(clientiByNume).sort((a,b) => b.count - a.count || b.val - a.val).slice(0, 10)
 
   // ── RETURURI ─────────────────────────────────────────────────
   // Urban/Rural nu e disponibil din SmartBill storno (câmpul e hardcodat)
@@ -147,18 +161,18 @@ export default function ClientiPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 { lbl:'Tranzacții totale', val: filtered.length },
-                { lbl:'Urban', val:`${urbanCount} (${filtered.length>0?((urbanCount/filtered.length)*100).toFixed(0):0}%)` },
-                { lbl:'Rural', val:`${ruralCount} (${filtered.length>0?((ruralCount/filtered.length)*100).toFixed(0):0}%)` },
+                { lbl:'Clienți unici', val: Object.keys(clientiByNume).length },
                 { lbl:'Județe active', val: Object.keys(byJudet).filter(j=>j!=='necunoscut').length },
-              ].map(({lbl,val}) => (
+                { lbl:'Venit total', val: formatRon(totalVenit), small: true },
+              ].map(({lbl,val,small}) => (
                 <div key={lbl} className="card p-4">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{lbl}</p>
-                  <p className="text-2xl font-bold text-slate-900 mt-1">{val}</p>
+                  <p className={`font-bold mt-1 ${small ? 'text-xl' : 'text-2xl'} text-slate-900`}>{val}</p>
                 </div>
               ))}
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-              <PieCard title="Urban vs Rural — Venit" data={mediuPie} />
+              <PieCard title="Gen cumpărători" subtitle="estimat din prenume (câmp nume client SmartBill)" data={genderPieVanzari} />
               <PieCard title="Tip client — Venit" data={tipPie} />
               <div className="card p-5">
                 <p className="text-sm font-bold text-slate-800 mb-4">Top județe după venit</p>
@@ -197,6 +211,35 @@ export default function ClientiPage() {
                     <Bar dataKey="venit" fill="#f97316" radius={[4,4,0,0]} name="Venit" />
                   </BarChart>
                 </ResponsiveContainer>
+              </div>
+            )}
+
+            {topClientiCumparatori.length > 0 && (
+              <div className="card overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-100">
+                  <p className="text-sm font-bold text-slate-800">Top 10 cumpărători</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Sortați după număr comenzi, apoi după valoare</p>
+                </div>
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      {['#','Client','Gen estimat','Nr. comenzi','Valoare totală'].map(h => (
+                        <th key={h} className="table-header text-left px-4 py-3">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topClientiCumparatori.map((c,i) => (
+                      <tr key={i} className="table-row">
+                        <td className="table-cell text-slate-400 text-xs">{i+1}</td>
+                        <td className="table-cell font-medium text-slate-900">{c.nume}</td>
+                        <td className="table-cell text-sm">{c.gender==='F' ? '👩 Feminin' : '👨 Masculin'}</td>
+                        <td className="table-cell"><span className="font-black text-lg text-orange-500">{c.count}×</span></td>
+                        <td className="table-cell font-mono font-semibold text-slate-900">{formatRon(c.val)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </>
