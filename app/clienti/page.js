@@ -33,20 +33,12 @@ export default function ClientiPage() {
   const stornoList = allFiltered.filter(v => v.isStorno)
 
   // ── CLIENȚI ──────────────────────────────────────────────────
-  const urbanCount = filtered.filter(v => v.mediu === 'urban').length
-  const ruralCount = filtered.filter(v => v.mediu === 'rural').length
-  const urbanVenit = filtered.filter(v => v.mediu === 'urban').reduce((s,v) => s + calcVanzareProfit(v, produse).venit, 0)
-  const ruralVenit = filtered.filter(v => v.mediu === 'rural').reduce((s,v) => s + calcVanzareProfit(v, produse).venit, 0)
-  const pfVenit    = filtered.filter(v => v.tipClient === 'persoana_fizica').reduce((s,v) => s + calcVanzareProfit(v, produse).venit, 0)
-  const firmaVenit = filtered.filter(v => v.tipClient === 'firma').reduce((s,v) => s + calcVanzareProfit(v, produse).venit, 0)
   const totalVenit = filtered.reduce((s,v) => s + calcVanzareProfit(v, produse).venit, 0)
 
   const byJudet = groupBy(filtered, 'judet')
   const topJudete = Object.entries(byJudet)
     .map(([judet, vs]) => ({ judet: judet === 'necunoscut' ? '—' : judet, venit: vs.reduce((s,v) => s + calcVanzareProfit(v, produse).venit, 0), tranzactii: vs.length }))
     .filter(j => j.judet !== '—').sort((a,b) => b.venit - a.venit).slice(0, 10)
-
-  const tipPie = [{ name:'Persoană fizică', value:pfVenit, fill:'#3b82f6' }, { name:'Firmă', value:firmaVenit, fill:'#10b981' }].filter(d => d.value > 0)
 
   // Gen cumpărători (din câmpul oras = nume client SmartBill)
   const genderVanzari = filtered.reduce((acc,v) => { const g = detectGender(v.oras); if(g==='F') acc.F++; else acc.M++; return acc }, { F:0, M:0 })
@@ -171,9 +163,8 @@ export default function ClientiPage() {
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
               <PieCard title="Gen cumpărători" subtitle="estimat din prenume (câmp nume client SmartBill)" data={genderPieVanzari} />
-              <PieCard title="Tip client — Venit" data={tipPie} />
               <div className="card p-5">
                 <p className="text-sm font-bold text-slate-800 mb-4">Top județe după venit</p>
                 {topJudete.length === 0 ? <EmptyState icon={Users} title="Fără date" /> : (
