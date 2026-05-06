@@ -1,11 +1,11 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
   "/analiza/page": "app/analiza/page.js",
-  "/cheltuieli/page": "app/cheltuieli/page.js",
   "/clienti/page": "app/clienti/page.js",
+  "/cheltuieli/page": "app/cheltuieli/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/import/page": "app/import/page.js",
   "/incasari/page": "app/incasari/page.js",
+  "/import/page": "app/import/page.js",
   "/page": "app/page.js",
   "/produse/page": "app/produse/page.js",
   "/vanzari/page": "app/vanzari/page.js"

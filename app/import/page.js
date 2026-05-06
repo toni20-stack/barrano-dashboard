@@ -118,11 +118,10 @@ function parseEmagFacturi(buf, taraFortat) {
     const d=fmtData(String(isEngleza ? (row['Invoice emission date']||'') : (row['Data emitere factura']||'')))
     const doc=String(isEngleza ? (row['Invoice series/number']||row['Invoice series\/number']||'') : (row['Serie/numar factura']||'')).trim()
     const label=EMAG_LABELS[tip]||tip
-    const categorie = tip==='FED'?`Comision Genius eMAG ${tara}`:
-                      tip==='FY'?'Card cadou retur eMAG':
-                      tip==='FTIC'?`Comision transport cross-border eMAG ${tara}`:
-                      tip==='FHIC'?`Handling fee eMAG ${tara}`:
-                      `Comisioane eMAG ${tara}`
+    const categorie = tip==='FTIC' ? 'Transport' :
+                      tip==='FED'  ? 'Abonamente' :
+                      tip==='FY'   ? 'Altele' :
+                      'Comisioane eMAG'
     if (EMAG_CH.includes(tip)) {
       cheltuieli.push({_id:`ef_${i}`,tip,label,categorie,suma:valoare,data:d,document:doc,isNegativ:valoare<0,tara})
     } else if (EMAG_INC.includes(tip)) {
