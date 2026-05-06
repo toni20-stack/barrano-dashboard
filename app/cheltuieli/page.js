@@ -12,9 +12,9 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 
 const CAT_COLORS = {
   'Marketing': '#f97316',
-  'Logistică': '#3b82f6',
+  'Transport': '#3b82f6',
+  'Comisioane eMAG': '#ef4444',
   'Abonamente': '#8b5cf6',
-  'Salarii': '#10b981',
   'Chirii': '#f59e0b',
   'Altele': '#64748b',
 }
