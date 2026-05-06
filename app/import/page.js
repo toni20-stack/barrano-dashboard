@@ -40,7 +40,12 @@ function parseSmartBill(buf) {
     produs: headers.findIndex(h=>h==='Produs'),
     cod: headers.findIndex(h=>h.includes('Cod Produs')),
     client: headers.findIndex(h=>h==='Client'),
-    cif: headers.findIndex(h=>h==='CIF'||h==='CIF/CNP'||h==='CUI'||h.toLowerCase().includes('cod fiscal')),
+    cif: headers.findIndex(h=>{
+      const u=h.toUpperCase().replace(/[\s./\-_]/g,'')
+      if(['CIF','CIFCNP','CNPCIF','CUI','CODFISCAL','CODIDENTIFICAREFISCALA','NRREGCOM'].includes(u)) return true
+      const l=h.toLowerCase()
+      return l.includes('cif')||l.includes('cui')||l.includes('cod fiscal')||l.includes('fiscal')
+    }),
     judet: headers.findIndex(h=>h.includes('Judet')),
     data: headers.findIndex(h=>h==='Data'),
     tipDoc: headers.findIndex(h=>h.includes('Tip doc')),
@@ -49,6 +54,7 @@ function parseSmartBill(buf) {
     pretRon: headers.findIndex(h=>h.includes('Pret unitar')&&h.includes('RON')),
     valRon: headers.findIndex(h=>h.includes('Valoare')&&h.includes('RON')),
   }
+  const cifColName = idx.cif >= 0 ? headers[idx.cif] : null
   const normale=[], storno=[]
   rows.forEach((row,i)=>{
     const produs=String(row[idx.produs]||'').trim()
@@ -67,7 +73,7 @@ function parseSmartBill(buf) {
     if (tip.includes('storno')) storno.push(obj)
     else normale.push(obj)
   })
-  return {normale,storno}
+  return {normale, storno, cifColName, headers}
 }
 
 const EMAG_IGNORAT=['FAACP','FACCP','FAPC','FAPOF','FAECCP','FAECP']
@@ -143,6 +149,14 @@ function parseEmagAds(buf) {
 
 // ── IMPORT FUNCTIONS ─────────────────────────────────────────
 
+// CNP = exact 13 cifre → persoană fizică; CIF/CUI = altceva → firmă
+function isFirma(cif) {
+  if (!cif) return false
+  const v = cif.trim().replace(/\s/g,'')
+  if (!v || v === '0') return false
+  return !/^\d{13}$/.test(v)
+}
+
 function doImportSB(normale, storno, editNames) {
   initStorage()
   const existProduse=getProduse(), existVanzari=getVanzari()
@@ -158,10 +172,8 @@ function doImportSB(normale, storno, editNames) {
       noi.push(p); map[n]=p.id
     }
   })
-  // CNP = exact 13 cifre → persoană fizică; CIF/CUI = altceva → firmă
-  const isFirma = cif => { if (!cif) return false; const v=cif.trim().replace(/\s/g,''); if (!v) return false; return !/^\d{13}$/.test(v) }
-  const vNoi=normale.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:isFirma(r.cif)?'firma':'persoana_fizica',fisiere:[],sursa:'smartbill',document:r.document,tara:r.tara}))
-  const sNoi=storno.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:isFirma(r.cif)?'firma':'persoana_fizica',fisiere:[],sursa:'smartbill_storno',document:r.document,tara:r.tara,isStorno:true}))
+  const vNoi=normale.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',cifRaw:r.cif||'',tipClient:isFirma(r.cif)?'firma':'persoana_fizica',fisiere:[],sursa:'smartbill',document:r.document,tara:r.tara}))
+  const sNoi=storno.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',cifRaw:r.cif||'',tipClient:isFirma(r.cif)?'firma':'persoana_fizica',fisiere:[],sursa:'smartbill_storno',document:r.document,tara:r.tara,isStorno:true}))
   saveProduse([...existProduse,...noi])
   saveVanzari([...existVanzari,...vNoi,...sNoi])
   return {vanzari:vNoi.length,storno:sNoi.length,produse:noi.length}
@@ -402,6 +414,14 @@ export default function ImportPage() {
                     <div key={l} className="card p-3"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{l}</p><p className={`text-lg font-black mt-1 ${c}`}>{v}</p></div>
                   ))}
                 </div>
+
+                {/* Debug CIF */}
+                <div className={`p-3 rounded-xl border text-[11px] font-semibold space-y-1 ${sbData.cifColName ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                  <p><strong>Coloana CIF detectată:</strong> {sbData.cifColName ? `"${sbData.cifColName}"` : '⚠️ Nu s-a găsit nicio coloană CIF/CNP'}</p>
+                  <p><strong>Firme detectate:</strong> {sbData.normale.filter(r=>isFirma(r.cif)).length} din {sbData.normale.length} rânduri</p>
+                  <p style={{opacity:0.6}}>Coloane fișier: {(sbData.headers||[]).slice(0,12).join(' · ')}</p>
+                </div>
+
                 <div className="flex gap-2">
                   {[['normale',`Vânzări (${sbData.normale.length})`],['storno',`Stornouri / Retururi (${sbData.storno.length})`]].map(([v,l])=>(
                     <button key={v} onClick={()=>setSbSubTab(v)} className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${sbSubTab===v?'bg-slate-900 text-white border-slate-900':'bg-white text-slate-600 border-slate-200'}`}>{l}</button>
@@ -414,13 +434,14 @@ export default function ImportPage() {
                   <div className="overflow-x-auto max-h-80 overflow-y-auto">
                     <table className="w-full">
                       <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
-                        <tr>{['Produs (editabil)','Client','Județ','Țară','Data','Cant.','Valoare RON'].map(h=><th key={h} className="table-header text-left px-3 py-2">{h}</th>)}</tr>
+                        <tr>{['Produs (editabil)','Client','CIF/CNP','Județ','Țară','Data','Cant.','Valoare RON'].map(h=><th key={h} className="table-header text-left px-3 py-2">{h}</th>)}</tr>
                       </thead>
                       <tbody>
                         {(sbSubTab==='normale'?sbData.normale:sbData.storno).slice(0,150).map(row=>{
                           const key=row.cod||row.produs
                           const isEd=sbEditing===key
                           const name=getName(row)
+                          const firma = isFirma(row.cif)
                           return (
                             <tr key={row._id} className="table-row">
                               <td className="table-cell max-w-[200px]">
@@ -437,6 +458,12 @@ export default function ImportPage() {
                                 }
                               </td>
                               <td className="table-cell text-xs text-slate-500 max-w-[100px] truncate">{row.client}</td>
+                              <td className="table-cell text-xs">
+                                {row.cif
+                                  ? <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${firma ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>{firma ? '🏢' : '👤'} {row.cif}</span>
+                                  : <span className="text-slate-300 text-[10px]">—</span>
+                                }
+                              </td>
                               <td className="table-cell text-xs text-slate-600">{row.judet}</td>
                               <td className="table-cell text-center">{row.tara==='RO'?'🇷🇴':row.tara==='HU'?'🇭🇺':'🇧🇬'}</td>
                               <td className="table-cell text-xs text-slate-500 whitespace-nowrap">{row.data}</td>

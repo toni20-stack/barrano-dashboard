@@ -3,7 +3,8 @@
     "allow": [
       "Bash(bash push.sh \"fix: comision din facturi reale \\(FC\\) in loc de 26% estimat - KPI-uri globale + isNegativ cheltuieli\")",
       "Bash(bash push.sh \"fix: marja globala calculata din profit net, nu din marja bruta\")",
-      "Bash(bash *)"
+      "Bash(bash *)",
+      "Bash(npx next *)"
     ]
   }
 }
