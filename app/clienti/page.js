@@ -33,7 +33,10 @@ export default function ClientiPage() {
   const stornoList = allFiltered.filter(v => v.isStorno)
 
   // ── CLIENȚI ──────────────────────────────────────────────────
+  const pfVenit    = filtered.filter(v => v.tipClient !== 'firma').reduce((s,v) => s + calcVanzareProfit(v, produse).venit, 0)
+  const firmaVenit = filtered.filter(v => v.tipClient === 'firma').reduce((s,v) => s + calcVanzareProfit(v, produse).venit, 0)
   const totalVenit = filtered.reduce((s,v) => s + calcVanzareProfit(v, produse).venit, 0)
+  const tipPie = [{ name:'Persoană fizică', value:pfVenit, fill:'#3b82f6' }, { name:'Firmă', value:firmaVenit, fill:'#10b981' }].filter(d => d.value > 0)
 
   const byJudet = groupBy(filtered, 'judet')
   const topJudete = Object.entries(byJudet)
@@ -163,8 +166,9 @@ export default function ClientiPage() {
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-              <PieCard title="Gen cumpărători" subtitle="estimat din prenume (câmp nume client SmartBill)" data={genderPieVanzari} />
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+              <PieCard title="Gen cumpărători" subtitle="estimat din prenume" data={genderPieVanzari} />
+              <PieCard title="Tip client" subtitle="CIF completat = Firmă · gol = Persoană fizică" data={tipPie} />
               <div className="card p-5">
                 <p className="text-sm font-bold text-slate-800 mb-4">Top județe după venit</p>
                 {topJudete.length === 0 ? <EmptyState icon={Users} title="Fără date" /> : (

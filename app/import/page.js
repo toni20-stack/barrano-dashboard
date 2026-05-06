@@ -42,9 +42,9 @@ function parseSmartBill(buf) {
     client: headers.findIndex(h=>h==='Client'),
     cif: headers.findIndex(h=>{
       const u=h.toUpperCase().replace(/[\s./\-_]/g,'')
-      if(['CIF','CIFCNP','CNPCIF','CUI','CODFISCAL','CODIDENTIFICAREFISCALA','NRREGCOM'].includes(u)) return true
+      if(['CIF','CIFCLIENT','CIFCNP','CNPCIF','CUI','CODFISCAL','CODIDENTIFICAREFISCALA'].includes(u)) return true
       const l=h.toLowerCase()
-      return l.includes('cif')||l.includes('cui')||l.includes('cod fiscal')||l.includes('fiscal')
+      return l==='cif client'||l.includes('cod fiscal')||l.includes('cif/cnp')
     }),
     judet: headers.findIndex(h=>h.includes('Judet')),
     data: headers.findIndex(h=>h==='Data'),
@@ -172,8 +172,9 @@ function doImportSB(normale, storno, editNames) {
       noi.push(p); map[n]=p.id
     }
   })
-  const vNoi=normale.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:'persoana_fizica',fisiere:[],sursa:'smartbill',document:r.document,tara:r.tara}))
-  const sNoi=storno.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:'persoana_fizica',fisiere:[],sursa:'smartbill_storno',document:r.document,tara:r.tara,isStorno:true}))
+  const hasCif = cif => { const v=(cif||'').trim().replace(/\s/g,''); return v.length>0 && v!=='0' }
+  const vNoi=normale.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:hasCif(r.cif)?'firma':'persoana_fizica',fisiere:[],sursa:'smartbill',document:r.document,tara:r.tara}))
+  const sNoi=storno.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:hasCif(r.cif)?'firma':'persoana_fizica',fisiere:[],sursa:'smartbill_storno',document:r.document,tara:r.tara,isStorno:true}))
   saveProduse([...existProduse,...noi])
   saveVanzari([...existVanzari,...vNoi,...sNoi])
   return {vanzari:vNoi.length,storno:sNoi.length,produse:noi.length}
