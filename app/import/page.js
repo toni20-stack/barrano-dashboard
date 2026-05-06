@@ -172,7 +172,7 @@ function doImportSB(normale, storno, editNames) {
       noi.push(p); map[n]=p.id
     }
   })
-  const hasCif = cif => { const v=(cif||'').trim().replace(/\s/g,''); return v.length>0 && v!=='0' }
+  const hasCif = cif => /[a-zA-Z0-9]/.test((cif||'').trim())
   const vNoi=normale.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:hasCif(r.cif)?'firma':'persoana_fizica',fisiere:[],sursa:'smartbill',document:r.document,tara:r.tara}))
   const sNoi=storno.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:hasCif(r.cif)?'firma':'persoana_fizica',fisiere:[],sursa:'smartbill_storno',document:r.document,tara:r.tara,isStorno:true}))
   saveProduse([...existProduse,...noi])
