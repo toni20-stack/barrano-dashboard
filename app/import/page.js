@@ -282,9 +282,9 @@ async function doImportEF(cheltuieli, incasari, fisier, tara) {
   return {cheltuieli:chNoi.length,incasari:iNoi.length}
 }
 
-async function doImportAds(prepaid, fisier) {
+async function doImportAds(credite, fisier) {
   const batchId = uuidv4()
-  const noi=prepaid.map(p=>({id:uuidv4(),batchId,categorie:'Marketing',suma:p.valoare,data:p.data,descriere:'eMAG Ads — credit pre-paid',sursa:'emag_ads',tara:'RO'}))
+  const noi=credite.map(p=>({id:uuidv4(),batchId,categorie:'Marketing',suma:p.valoare,data:p.data,descriere:`eMAG Ads — ${p.tip||'credit'}`,sursa:'emag_ads',tara:'RO'}))
   await addCheltuieliBulk(noi)
   await addImport({id:batchId, fisier:fisier||'eMAG Ads', tip:'emag_ads', data:new Date().toISOString().slice(0,10), countCheltuieli:noi.length})
   return {cheltuieli:noi.length}
@@ -1063,7 +1063,7 @@ export default function ImportPage() {
                 <li>eMAG Seller → <strong>Marketing → eMAG Ads → Credite</strong></li>
                 <li>Apasă <strong>Export Excel</strong></li>
               </ol>
-              <InfoBox color="amber">Se importă doar creditele Pre-paid ca cheltuieli Marketing. Creditele Free (gratuite) sunt ignorate.</InfoBox>
+              <InfoBox color="amber">Se importă toate creditele din fișier (Pre-paid + Free) ca cheltuieli Marketing.</InfoBox>
             </div>
 
             {!adsData && !adsResult && <DropZone onFile={handleAds} loading={loading} accept=".xlsx,.xls" hint="Export credite eMAG Ads (.xlsx)"/>}
@@ -1075,8 +1075,8 @@ export default function ImportPage() {
             {adsData && !adsResult && (
               <div className="space-y-4">
                 <div className="grid grid-cols-3 gap-3">
-                  {[['Pre-paid (de importat)',adsData.prepaid.length,'text-orange-600'],['Free (ignorate)',adsData.free.length,'text-slate-400'],
-                    ['Total',ron(adsData.prepaid.reduce((s,p)=>s+p.valoare,0)),'text-slate-900']
+                  {[['Pre-paid',adsData.prepaid.length,'text-orange-600'],['Free',adsData.free.length,'text-emerald-600'],
+                    ['Total de importat',ron([...adsData.prepaid,...adsData.free].reduce((s,p)=>s+p.valoare,0)),'text-slate-900']
                   ].map(([l,v,c])=>(
                     <div key={l} className="card p-3"><p className="text-[10px] font-bold text-slate-400 uppercase">{l}</p><p className={`text-lg font-black mt-1 ${c}`}>{v}</p></div>
                   ))}
@@ -1088,18 +1088,13 @@ export default function ImportPage() {
                         <tr>{['Data','Tip','Valoare (RON)'].map(h=><th key={h} className="table-header text-left px-3 py-2">{h}</th>)}</tr>
                       </thead>
                       <tbody>
-                        {adsData.prepaid.map(p=>(
+                        {[...adsData.prepaid,...adsData.free].map(p=>(
                           <tr key={p._id} className="table-row">
                             <td className="table-cell text-xs text-slate-600">{p.data}</td>
-                            <td className="table-cell"><span className="text-[10px] font-bold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">Pre-paid</span></td>
+                            <td className="table-cell">
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${p.tip==='Pre-paid'?'bg-orange-100 text-orange-700':'bg-emerald-100 text-emerald-700'}`}>{p.tip}</span>
+                            </td>
                             <td className="table-cell text-right font-mono text-xs font-bold text-slate-900">{ron(p.valoare)}</td>
-                          </tr>
-                        ))}
-                        {adsData.free.map(p=>(
-                          <tr key={p._id} className="table-row opacity-40">
-                            <td className="table-cell text-xs text-slate-500">{p.data}</td>
-                            <td className="table-cell"><span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">Free — ignorat</span></td>
-                            <td className="table-cell text-right font-mono text-xs text-slate-400">{ron(p.valoare)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1108,7 +1103,7 @@ export default function ImportPage() {
                 </div>
                 <div className="flex gap-3 justify-end">
                   <button className="btn-secondary" onClick={()=>setAdsData(null)}>← Alt fișier</button>
-                  <button className="btn-primary" onClick={async ()=>setAdsResult(await doImportAds(adsData.prepaid,adsData.fisier))}><CheckCircle size={14}/> Importă {adsData.prepaid.length} credite</button>
+                  <button className="btn-primary" onClick={async ()=>setAdsResult(await doImportAds([...adsData.prepaid,...adsData.free],adsData.fisier))}><CheckCircle size={14}/> Importă {adsData.prepaid.length+adsData.free.length} credite</button>
                 </div>
               </div>
             )}
