@@ -1,10 +1,10 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import AppLayout from '../../components/AppLayout'
 import Topbar from '../../components/Topbar'
-import { Upload, CheckCircle, AlertCircle, Pencil, Check, X, FileText, ShoppingBag, Megaphone, Truck, CreditCard, Building2, Package, Plus, FileSpreadsheet, FileType } from 'lucide-react'
-import { addVanzariBulk, addProduseBulk, addCheltuieliBulk, addIncasariBulk, addCheltuiala, deleteVanzariBySursa, deleteCheltuieliEmagByTara, getProduse } from '../../lib/storage'
+import { Upload, CheckCircle, AlertCircle, Pencil, Check, X, FileText, ShoppingBag, Megaphone, Truck, CreditCard, Building2, Package, Plus, FileSpreadsheet, FileType, Trash2, Clock } from 'lucide-react'
+import { addVanzariBulk, addProduseBulk, addCheltuieliBulk, addIncasariBulk, addCheltuiala, deleteVanzariBySursa, deleteCheltuieliEmagByTara, getProduse, getImporturi, addImport, deleteImport, deleteByBatchId } from '../../lib/storage'
 import { v4 as uuidv4 } from 'uuid'
 
 const ron = v => new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:2}).format(v||0)
@@ -250,7 +250,8 @@ function isFirma(cif) {
   return !/^\d{13}$/.test(v)
 }
 
-async function doImportSB(normale, storno, editNames) {
+async function doImportSB(normale, storno, editNames, fisier) {
+  const batchId = uuidv4()
   const existProduse = await getProduse()
   const map={}
   existProduse.forEach(p=>{map[p.numeBarrano]=p.id})
@@ -265,22 +266,27 @@ async function doImportSB(normale, storno, editNames) {
     }
   })
   const hasCif = cif => /[a-zA-Z0-9]/.test((cif||'').trim())
-  const vNoi=normale.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:hasCif(r.cif)?'firma':'persoana_fizica',fisiere:[],sursa:'smartbill',document:r.document,tara:r.tara}))
-  const sNoi=storno.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:hasCif(r.cif)?'firma':'persoana_fizica',fisiere:[],sursa:'smartbill_storno',document:r.document,tara:r.tara,isStorno:true}))
+  const vNoi=normale.map(r=>({id:uuidv4(),batchId,produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:hasCif(r.cif)?'firma':'persoana_fizica',fisiere:[],sursa:'smartbill',document:r.document,tara:r.tara}))
+  const sNoi=storno.map(r=>({id:uuidv4(),batchId,produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:hasCif(r.cif)?'firma':'persoana_fizica',fisiere:[],sursa:'smartbill_storno',document:r.document,tara:r.tara,isStorno:true}))
   await Promise.all([addProduseBulk(noi), addVanzariBulk([...vNoi,...sNoi])])
+  await addImport({id:batchId, fisier:fisier||'SmartBill', tip:'smartbill', data:new Date().toISOString().slice(0,10), countVanzari:vNoi.length, countStorno:sNoi.length, countProduse:noi.length})
   return {vanzari:vNoi.length,storno:sNoi.length,produse:noi.length}
 }
 
-async function doImportEF(cheltuieli, incasari) {
-  const chNoi=cheltuieli.map(c=>({id:uuidv4(),categorie:c.categorie,suma:Math.abs(c.suma),data:c.data,descriere:`${c.label} — ${c.document}`,sursa:'emag',tip:c.tip,isNegativ:c.isNegativ,tara:c.tara||''}))
-  const iNoi=incasari.map(i=>({id:uuidv4(),tip:i.tip,label:i.label,suma:i.suma,data:i.data,document:i.document,sursa:'emag',isNegativ:i.isNegativ,tara:i.tara||''}))
+async function doImportEF(cheltuieli, incasari, fisier, tara) {
+  const batchId = uuidv4()
+  const chNoi=cheltuieli.map(c=>({id:uuidv4(),batchId,categorie:c.categorie,suma:Math.abs(c.suma),data:c.data,descriere:`${c.label} — ${c.document}`,sursa:'emag',tip:c.tip,isNegativ:c.isNegativ,tara:c.tara||''}))
+  const iNoi=incasari.map(i=>({id:uuidv4(),batchId,tip:i.tip,label:i.label,suma:i.suma,data:i.data,document:i.document,sursa:'emag',isNegativ:i.isNegativ,tara:i.tara||''}))
   await Promise.all([addCheltuieliBulk(chNoi), addIncasariBulk(iNoi)])
+  await addImport({id:batchId, fisier:fisier||'eMAG Facturi', tip:'emag_facturi', tara:tara||'RO', data:new Date().toISOString().slice(0,10), countCheltuieli:chNoi.length, countIncasari:iNoi.length})
   return {cheltuieli:chNoi.length,incasari:iNoi.length}
 }
 
-async function doImportAds(prepaid) {
-  const noi=prepaid.map(p=>({id:uuidv4(),categorie:'Marketing',suma:p.valoare,data:p.data,descriere:'eMAG Ads — credit pre-paid',sursa:'emag_ads',tara:'RO'}))
+async function doImportAds(prepaid, fisier) {
+  const batchId = uuidv4()
+  const noi=prepaid.map(p=>({id:uuidv4(),batchId,categorie:'Marketing',suma:p.valoare,data:p.data,descriere:'eMAG Ads — credit pre-paid',sursa:'emag_ads',tara:'RO'}))
   await addCheltuieliBulk(noi)
+  await addImport({id:batchId, fisier:fisier||'eMAG Ads', tip:'emag_ads', data:new Date().toISOString().slice(0,10), countCheltuieli:noi.length})
   return {cheltuieli:noi.length}
 }
 
@@ -376,7 +382,7 @@ function SimpleImport({ categorie }) {
         setMode('pdf')
       } else {
         const data = parseGenericExcel(arr)
-        setExcelData(data)
+        setExcelData({...data, fileName: file.name})
         setMode('excel')
       }
     } catch(e) {
@@ -386,11 +392,13 @@ function SimpleImport({ categorie }) {
   }
 
   const importExcel = async () => {
+    const batchId = uuidv4()
     const noi = excelData.rows.map(r => ({
-      id: uuidv4(), categorie, suma: r.suma, data: r.data,
+      id: uuidv4(), batchId, categorie, suma: r.suma, data: r.data,
       descriere: r.descriere || '', tara: excelTara, sursa: 'excel_import'
     }))
     await addCheltuieliBulk(noi)
+    await addImport({id:batchId, fisier:excelData.fileName||'Excel', tip:'excel', categorie, tara:excelTara, data:new Date().toISOString().slice(0,10), countCheltuieli:noi.length})
     setImportCount(noi.length)
     setMode('done')
   }
@@ -399,7 +407,9 @@ function SimpleImport({ categorie }) {
     const s = parseFloat(pdfSuma)
     if (!s || s <= 0) { setError('Suma trebuie să fie mai mare ca 0.'); return }
     if (!pdfData) { setError('Completează data facturii.'); return }
-    await addCheltuiala({ id: uuidv4(), categorie, suma: s, data: pdfData, descriere: pdfDescriere, tara: pdfTara, sursa: 'pdf_import' })
+    const batchId = uuidv4()
+    await addCheltuiala({ id: uuidv4(), batchId, categorie, suma: s, data: pdfData, descriere: pdfDescriere, tara: pdfTara, sursa: 'pdf_import' })
+    await addImport({id:batchId, fisier:pdfParsed?.fileName||'PDF', tip:'pdf', categorie, tara:pdfTara, data:new Date().toISOString().slice(0,10), countCheltuieli:1})
     setImportCount(1)
     setMode('done')
   }
@@ -651,6 +661,7 @@ function LegendaFacturi({open, onToggle}) {
 // Componenta reutilizabilă pentru import eMAG Facturi, filtrată pe tipuri
 function EmagFacturiSection({ tipuriCheltuieli, showIncasari = false }) {
   const [efData, setEfData] = useState(null)
+  const [efFileName, setEfFileName] = useState('')
   const [efTara, setEfTara] = useState('RO')
   const [efMoneda, setEfMoneda] = useState('RON')
   const [efCurs, setEfCurs] = useState(1)
@@ -672,7 +683,7 @@ function EmagFacturiSection({ tipuriCheltuieli, showIncasari = false }) {
       const buf = await file.arrayBuffer()
       const result = parseEmagFacturi(new Uint8Array(buf))
       const monedaDefault = MONEDA_DEFAULT_TARA[result.tara]||'RON'
-      setEfData(result); setEfTara(result.tara)
+      setEfData(result); setEfFileName(file.name); setEfTara(result.tara)
       setEfMoneda(monedaDefault); setEfCurs(MONEDE.find(m=>m.cod===monedaDefault)?.curs||1)
       setEfResult(null)
     } catch(e) { setError(e.message) }
@@ -685,7 +696,8 @@ function EmagFacturiSection({ tipuriCheltuieli, showIncasari = false }) {
   const doImport = async () => {
     const result = await doImportEF(
       cheltuieliFiltrate.map(c => ({...c, tara:efTara, suma:parseFloat((Math.abs(c.suma)*efCurs).toFixed(2))})),
-      showIncasari ? incasariFiltrate.map(i => ({...i, tara:efTara, suma:parseFloat((i.suma*efCurs).toFixed(2))})) : []
+      showIncasari ? incasariFiltrate.map(i => ({...i, tara:efTara, suma:parseFloat((i.suma*efCurs).toFixed(2))})) : [],
+      efFileName, efTara
     )
     setEfResult(result)
   }
@@ -800,6 +812,60 @@ function EmagFacturiSection({ tipuriCheltuieli, showIncasari = false }) {
   )
 }
 
+// ── ISTORIC IMPORTURI ────────────────────────────────────────
+
+const TIP_INFO = {
+  smartbill:    { label:'SmartBill',    color:'bg-blue-100 text-blue-700' },
+  emag_facturi: { label:'eMAG Facturi', color:'bg-red-100 text-red-700' },
+  emag_ads:     { label:'eMAG Ads',     color:'bg-orange-100 text-orange-700' },
+  excel:        { label:'Excel',        color:'bg-slate-100 text-slate-700' },
+  pdf:          { label:'PDF',          color:'bg-purple-100 text-purple-700' },
+}
+
+function IstoricImporturi({ importuri, onDelete }) {
+  const [open, setOpen] = useState(false)
+  const sorted = [...importuri].sort((a,b) => (b.data||'').localeCompare(a.data||''))
+  return (
+    <div className="card overflow-hidden">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 transition-colors">
+        <span className="text-sm font-bold text-slate-800 flex items-center gap-2"><Clock size={15}/> Istoric importuri ({importuri.length})</span>
+        <span className="text-xs text-slate-400 font-semibold">{open ? 'Ascunde ▲' : 'Afișează ▼'}</span>
+      </button>
+      {open && (
+        <div className="border-t border-slate-100">
+          {sorted.length === 0 ? (
+            <div className="px-5 py-8 text-center text-sm text-slate-400">Niciun import înregistrat.</div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {sorted.map(imp => {
+                const info = TIP_INFO[imp.tip] || { label: imp.tip, color: 'bg-slate-100 text-slate-700' }
+                const stats = []
+                if (imp.countVanzari)   stats.push(`${imp.countVanzari} vânzări`)
+                if (imp.countStorno)    stats.push(`${imp.countStorno} retururi`)
+                if (imp.countProduse)   stats.push(`${imp.countProduse} produse noi`)
+                if (imp.countCheltuieli) stats.push(`${imp.countCheltuieli} cheltuieli`)
+                if (imp.countIncasari)  stats.push(`${imp.countIncasari} încasări`)
+                return (
+                  <div key={imp.id} className="flex items-center gap-3 px-5 py-3">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${info.color}`}>{info.label}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-slate-800 truncate">{imp.fisier}</p>
+                      <p className="text-[10px] text-slate-400">{imp.data} · {stats.join(' · ')}{imp.tara ? ` · ${imp.tara}` : ''}</p>
+                    </div>
+                    <button onClick={() => onDelete(imp)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0">
+                      <Trash2 size={13}/>
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── MAIN ─────────────────────────────────────────────────────
 
 export default function ImportPage() {
@@ -807,6 +873,23 @@ export default function ImportPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [legendOpen, setLegendOpen] = useState(false)
+  const [importuri, setImporturi] = useState([])
+
+  const loadImporturi = async () => setImporturi(await getImporturi())
+  useEffect(() => { loadImporturi() }, [])
+
+  const handleDeleteImport = async (imp) => {
+    if (!window.confirm(`Ștergi importul "${imp.fisier}"? Toate datele asociate vor fi șterse.`)) return
+    if (imp.tip === 'smartbill') {
+      await deleteByBatchId('vanzari', imp.id)
+    } else if (imp.tip === 'emag_facturi') {
+      await Promise.all([deleteByBatchId('cheltuieli', imp.id), deleteByBatchId('incasari', imp.id)])
+    } else {
+      await deleteByBatchId('cheltuieli', imp.id)
+    }
+    await deleteImport(imp.id)
+    await loadImporturi()
+  }
 
   // Vânzări (SmartBill)
   const [sbData, setSbData] = useState(null)
@@ -825,13 +908,13 @@ export default function ImportPage() {
   const handleSB = file => wrap(async() => {
     const buf = await file.arrayBuffer()
     const d = parseSmartBill(new Uint8Array(buf))
-    setSbData(d); setSbResult(null)
+    setSbData({...d, fisier: file.name}); setSbResult(null)
     const n = {}; ;[...d.normale,...d.storno].forEach(r=>{n[r.cod||r.produs]=r.produs}); setSbNames(n)
   })
 
   const handleAds = file => wrap(async() => {
     const buf = await file.arrayBuffer()
-    setAdsData(parseEmagAds(new Uint8Array(buf))); setAdsResult(null)
+    setAdsData({...parseEmagAds(new Uint8Array(buf)), fisier: file.name}); setAdsResult(null)
   })
 
   const getName = row => sbNames[row.cod||row.produs]||row.produs
@@ -964,7 +1047,7 @@ export default function ImportPage() {
                 </div>
                 <div className="flex gap-3 justify-end">
                   <button className="btn-secondary" onClick={()=>setSbData(null)}>← Alt fișier</button>
-                  <button className="btn-primary" onClick={async ()=>setSbResult(await doImportSB(sbData.normale,sbData.storno,sbNames))}><CheckCircle size={14}/> Importă {sbData.normale.length+sbData.storno.length} rânduri</button>
+                  <button className="btn-primary" onClick={async ()=>setSbResult(await doImportSB(sbData.normale,sbData.storno,sbNames,sbData.fisier))}><CheckCircle size={14}/> Importă {sbData.normale.length+sbData.storno.length} rânduri</button>
                 </div>
               </div>
             )}
@@ -1025,7 +1108,7 @@ export default function ImportPage() {
                 </div>
                 <div className="flex gap-3 justify-end">
                   <button className="btn-secondary" onClick={()=>setAdsData(null)}>← Alt fișier</button>
-                  <button className="btn-primary" onClick={async ()=>setAdsResult(await doImportAds(adsData.prepaid))}><CheckCircle size={14}/> Importă {adsData.prepaid.length} credite</button>
+                  <button className="btn-primary" onClick={async ()=>setAdsResult(await doImportAds(adsData.prepaid,adsData.fisier))}><CheckCircle size={14}/> Importă {adsData.prepaid.length} credite</button>
                 </div>
               </div>
             )}
@@ -1123,6 +1206,8 @@ export default function ImportPage() {
             <SimpleImport categorie="Altele"/>
           </div>
         )}
+
+        <IstoricImporturi importuri={importuri} onDelete={handleDeleteImport}/>
 
       </div>
     </AppLayout>
