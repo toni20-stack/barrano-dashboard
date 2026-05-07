@@ -5,7 +5,7 @@ import AppLayout from '../../components/AppLayout'
 import Topbar from '../../components/Topbar'
 import VanzareModal from '../../components/vanzari/VanzareModal'
 import { ConfirmDialog, EmptyState, Badge, ProfitCell, MarjaCell } from '../../components/ui'
-import { getVanzari, addVanzare, updateVanzare, deleteVanzare, getProduse, initStorage } from '../../lib/storage'
+import { getVanzari, addVanzare, updateVanzare, deleteVanzare, getProduse } from '../../lib/storage'
 import { calcVanzareProfit, formatRon, formatDate, filterByDateRange, CANALE_LABELS, MEDIU_LABELS } from '../../lib/calculations'
 import { exportVanzari } from '../../lib/export'
 
@@ -22,16 +22,15 @@ export default function VanzariPage() {
   const [search, setSearch] = useState('')
   const [viewTab, setViewTab] = useState('vanzari')
 
-  const load = useCallback(() => {
-    initStorage()
-    setVanzari(getVanzari())
-    setProduse(getProduse())
+  const load = useCallback(async () => {
+    const [v, p] = await Promise.all([getVanzari(), getProduse()])
+    setVanzari(v); setProduse(p)
   }, [])
   useEffect(() => { load() }, [load])
 
-  const handleSave = (v) => {
-    if (editV) updateVanzare(v)
-    else addVanzare(v)
+  const handleSave = async (v) => {
+    if (editV) await updateVanzare(v)
+    else await addVanzare(v)
     load()
   }
 
@@ -206,7 +205,7 @@ export default function VanzariPage() {
       </div>
 
       <VanzareModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={handleSave} vanzare={editV} produse={produse} />
-      <ConfirmDialog open={!!confirmId} onClose={() => setConfirmId(null)} onConfirm={() => { deleteVanzare(confirmId); load() }} title="Șterge înregistrare" message="Ești sigur că vrei să ștergi această înregistrare?" />
+      <ConfirmDialog open={!!confirmId} onClose={() => setConfirmId(null)} onConfirm={async () => { await deleteVanzare(confirmId); load() }} title="Șterge înregistrare" message="Ești sigur că vrei să ștergi această înregistrare?" />
     </AppLayout>
   )
 }

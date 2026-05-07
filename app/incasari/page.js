@@ -4,7 +4,7 @@ import { Trash2, Download, TrendingUp } from 'lucide-react'
 import AppLayout from '../../components/AppLayout'
 import Topbar from '../../components/Topbar'
 import { EmptyState, ConfirmDialog } from '../../components/ui'
-import { getIncasari, saveIncasari, initStorage } from '../../lib/storage'
+import { getIncasari, deleteIncasare } from '../../lib/storage'
 import { formatRon, formatDate, filterByDateRange } from '../../lib/calculations'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 
@@ -27,7 +27,7 @@ export default function IncasariPage() {
   const [dateTo, setDateTo] = useState('')
   const [filterTip, setFilterTip] = useState('')
 
-  const load = useCallback(() => { initStorage(); setIncasari(getIncasari()) }, [])
+  const load = useCallback(async () => { setIncasari(await getIncasari()) }, [])
   useEffect(() => { load() }, [load])
 
   const sorted = [...incasari].sort((a,b) => b.data?.localeCompare(a.data||''))
@@ -159,7 +159,7 @@ export default function IncasariPage() {
       </div>
 
       <ConfirmDialog open={!!confirmId} onClose={()=>setConfirmId(null)}
-        onConfirm={()=>{saveIncasari(getIncasari().filter(i=>i.id!==confirmId));load()}}
+        onConfirm={async ()=>{ await deleteIncasare(confirmId); load() }}
         title="Șterge încasare" message="Ești sigur că vrei să ștergi această încasare?"/>
     </AppLayout>
   )

@@ -4,7 +4,7 @@ import { Users, RotateCcw } from 'lucide-react'
 import AppLayout from '../../components/AppLayout'
 import Topbar from '../../components/Topbar'
 import { EmptyState } from '../../components/ui'
-import { getVanzari, getProduse, initStorage } from '../../lib/storage'
+import { getVanzari, getProduse } from '../../lib/storage'
 import { calcVanzareProfit, formatRon, filterByDateRange, groupBy } from '../../lib/calculations'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts'
 
@@ -23,7 +23,7 @@ export default function ClientiPage() {
   const [filterTara, setFilterTara] = useState('')
   const [viewTab, setViewTab] = useState('clienti')
 
-  const load = useCallback(() => { initStorage(); setVanzari(getVanzari()); setProduse(getProduse()) }, [])
+  const load = useCallback(async () => { const [v, p] = await Promise.all([getVanzari(), getProduse()]); setVanzari(v); setProduse(p) }, [])
   useEffect(() => { load() }, [load])
 
   const allFiltered = filterByDateRange(vanzari, 'data', dateFrom, dateTo)

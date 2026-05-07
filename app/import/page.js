@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx'
 import AppLayout from '../../components/AppLayout'
 import Topbar from '../../components/Topbar'
 import { Upload, CheckCircle, AlertCircle, Pencil, Check, X, FileText, ShoppingBag, Megaphone, Truck, CreditCard, Building2, Package, Plus, FileSpreadsheet, FileType } from 'lucide-react'
-import { getVanzari, saveVanzari, getProduse, saveProduse, getCheltuieli, saveCheltuieli, getIncasari, saveIncasari, addCheltuiala, initStorage } from '../../lib/storage'
+import { addVanzariBulk, addProduseBulk, addCheltuieliBulk, addIncasariBulk, addCheltuiala, deleteVanzariBySursa, deleteCheltuieliEmagByTara, getProduse } from '../../lib/storage'
 import { v4 as uuidv4 } from 'uuid'
 
 const ron = v => new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:2}).format(v||0)
@@ -250,9 +250,8 @@ function isFirma(cif) {
   return !/^\d{13}$/.test(v)
 }
 
-function doImportSB(normale, storno, editNames) {
-  initStorage()
-  const existProduse=getProduse(), existVanzari=getVanzari()
+async function doImportSB(normale, storno, editNames) {
+  const existProduse = await getProduse()
   const map={}
   existProduse.forEach(p=>{map[p.numeBarrano]=p.id})
   const noi=[], vazute=new Set()
@@ -268,24 +267,20 @@ function doImportSB(normale, storno, editNames) {
   const hasCif = cif => /[a-zA-Z0-9]/.test((cif||'').trim())
   const vNoi=normale.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:hasCif(r.cif)?'firma':'persoana_fizica',fisiere:[],sursa:'smartbill',document:r.document,tara:r.tara}))
   const sNoi=storno.map(r=>({id:uuidv4(),produsId:map[getName(r)]||'',cantitate:r.cantitate,pretUnitar:r.pretUnitar,data:fmtData(r.data),canal:'emag',aplicaComision:false,comisionEmag:0,judet:r.judet,oras:r.client||'',mediu:'urban',tipClient:hasCif(r.cif)?'firma':'persoana_fizica',fisiere:[],sursa:'smartbill_storno',document:r.document,tara:r.tara,isStorno:true}))
-  saveProduse([...existProduse,...noi])
-  saveVanzari([...existVanzari,...vNoi,...sNoi])
+  await Promise.all([addProduseBulk(noi), addVanzariBulk([...vNoi,...sNoi])])
   return {vanzari:vNoi.length,storno:sNoi.length,produse:noi.length}
 }
 
-function doImportEF(cheltuieli, incasari) {
-  initStorage()
+async function doImportEF(cheltuieli, incasari) {
   const chNoi=cheltuieli.map(c=>({id:uuidv4(),categorie:c.categorie,suma:Math.abs(c.suma),data:c.data,descriere:`${c.label} — ${c.document}`,sursa:'emag',tip:c.tip,isNegativ:c.isNegativ,tara:c.tara||''}))
   const iNoi=incasari.map(i=>({id:uuidv4(),tip:i.tip,label:i.label,suma:i.suma,data:i.data,document:i.document,sursa:'emag',isNegativ:i.isNegativ,tara:i.tara||''}))
-  saveCheltuieli([...getCheltuieli(),...chNoi])
-  saveIncasari([...getIncasari(),...iNoi])
+  await Promise.all([addCheltuieliBulk(chNoi), addIncasariBulk(iNoi)])
   return {cheltuieli:chNoi.length,incasari:iNoi.length}
 }
 
-function doImportAds(prepaid) {
-  initStorage()
+async function doImportAds(prepaid) {
   const noi=prepaid.map(p=>({id:uuidv4(),categorie:'Marketing',suma:p.valoare,data:p.data,descriere:'eMAG Ads — credit pre-paid',sursa:'emag_ads',tara:'RO'}))
-  saveCheltuieli([...getCheltuieli(),...noi])
+  await addCheltuieliBulk(noi)
   return {cheltuieli:noi.length}
 }
 
@@ -390,32 +385,29 @@ function SimpleImport({ categorie }) {
     setLoading(false)
   }
 
-  const importExcel = () => {
-    initStorage()
+  const importExcel = async () => {
     const noi = excelData.rows.map(r => ({
       id: uuidv4(), categorie, suma: r.suma, data: r.data,
       descriere: r.descriere || '', tara: excelTara, sursa: 'excel_import'
     }))
-    saveCheltuieli([...getCheltuieli(), ...noi])
+    await addCheltuieliBulk(noi)
     setImportCount(noi.length)
     setMode('done')
   }
 
-  const importPDF = () => {
+  const importPDF = async () => {
     const s = parseFloat(pdfSuma)
     if (!s || s <= 0) { setError('Suma trebuie să fie mai mare ca 0.'); return }
     if (!pdfData) { setError('Completează data facturii.'); return }
-    initStorage()
-    addCheltuiala({ id: uuidv4(), categorie, suma: s, data: pdfData, descriere: pdfDescriere, tara: pdfTara, sursa: 'pdf_import' })
+    await addCheltuiala({ id: uuidv4(), categorie, suma: s, data: pdfData, descriere: pdfDescriere, tara: pdfTara, sursa: 'pdf_import' })
     setImportCount(1)
     setMode('done')
   }
 
-  const importManual = () => {
+  const importManual = async () => {
     const s = parseFloat(manSuma)
     if (!s || s <= 0) return
-    initStorage()
-    addCheltuiala({ id: uuidv4(), categorie, suma: s, data: manData, descriere: manDescriere, tara: manTara, sursa: 'manual' })
+    await addCheltuiala({ id: uuidv4(), categorie, suma: s, data: manData, descriere: manDescriere, tara: manTara, sursa: 'manual' })
     setManSuma(''); setManDescriere(''); setManSaved(true)
     setTimeout(() => setManSaved(false), 2500)
   }
@@ -690,8 +682,8 @@ function EmagFacturiSection({ tipuriCheltuieli, showIncasari = false }) {
   const cheltuieliFiltrate = efData ? efData.cheltuieli.filter(c => tipuriCheltuieli.includes(c.tip)) : []
   const incasariFiltrate = efData ? efData.incasari : []
 
-  const doImport = () => {
-    const result = doImportEF(
+  const doImport = async () => {
+    const result = await doImportEF(
       cheltuieliFiltrate.map(c => ({...c, tara:efTara, suma:parseFloat((Math.abs(c.suma)*efCurs).toFixed(2))})),
       showIncasari ? incasariFiltrate.map(i => ({...i, tara:efTara, suma:parseFloat((i.suma*efCurs).toFixed(2))})) : []
     )
@@ -885,9 +877,9 @@ export default function ImportPage() {
             <div className="card p-4 space-y-2">
               <p className="text-xs font-bold text-slate-600">Șterge vânzările SmartBill importate anterior (pentru reimport):</p>
               <button className="text-xs font-bold border border-red-200 text-red-700 rounded-lg px-3 py-1.5 hover:bg-red-50 transition-all"
-                onClick={()=>{
+                onClick={async ()=>{
                   if(!window.confirm('Ștergi toate vânzările și retururile importate din SmartBill? Cheltuielile și încasările eMAG rămân intacte.')) return
-                  saveVanzari(getVanzari().filter(v=>v.sursa!=='smartbill'&&v.sursa!=='smartbill_storno'))
+                  await deleteVanzariBySursa(['smartbill','smartbill_storno'])
                   setSbData(null); setSbResult(null)
                   alert('Vânzările SmartBill au fost șterse.')
                 }}>
@@ -972,7 +964,7 @@ export default function ImportPage() {
                 </div>
                 <div className="flex gap-3 justify-end">
                   <button className="btn-secondary" onClick={()=>setSbData(null)}>← Alt fișier</button>
-                  <button className="btn-primary" onClick={()=>setSbResult(doImportSB(sbData.normale,sbData.storno,sbNames))}><CheckCircle size={14}/> Importă {sbData.normale.length+sbData.storno.length} rânduri</button>
+                  <button className="btn-primary" onClick={async ()=>setSbResult(await doImportSB(sbData.normale,sbData.storno,sbNames))}><CheckCircle size={14}/> Importă {sbData.normale.length+sbData.storno.length} rânduri</button>
                 </div>
               </div>
             )}
@@ -1033,7 +1025,7 @@ export default function ImportPage() {
                 </div>
                 <div className="flex gap-3 justify-end">
                   <button className="btn-secondary" onClick={()=>setAdsData(null)}>← Alt fișier</button>
-                  <button className="btn-primary" onClick={()=>setAdsResult(doImportAds(adsData.prepaid))}><CheckCircle size={14}/> Importă {adsData.prepaid.length} credite</button>
+                  <button className="btn-primary" onClick={async ()=>setAdsResult(await doImportAds(adsData.prepaid))}><CheckCircle size={14}/> Importă {adsData.prepaid.length} credite</button>
                 </div>
               </div>
             )}
@@ -1083,9 +1075,9 @@ export default function ImportPage() {
                   {tara:'HU',flag:'🇭🇺',label:'Ungaria',color:'text-purple-700 border-purple-200 hover:bg-purple-50'}
                 ].map(({tara,flag,label,color})=>(
                   <button key={tara} className={`text-xs font-bold border rounded-lg px-3 py-1.5 transition-all ${color}`}
-                    onClick={()=>{
+                    onClick={async ()=>{
                       if(!window.confirm(`Ștergi toate cheltuielile eMAG ${label}? Încasările rămân.`)) return
-                      saveCheltuieli(getCheltuieli().filter(c=>!(c.tara===tara&&c.sursa==='emag')))
+                      await deleteCheltuieliEmagByTara(tara)
                       alert(`Cheltuielile eMAG ${label} au fost șterse.`)
                     }}>
                     {flag} Șterge eMAG {label}

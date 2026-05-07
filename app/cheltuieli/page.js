@@ -5,7 +5,7 @@ import AppLayout from '../../components/AppLayout'
 import Topbar from '../../components/Topbar'
 import CheltuialaModal from '../../components/cheltuieli/CheltuialaModal'
 import { ConfirmDialog, EmptyState } from '../../components/ui'
-import { getCheltuieli, addCheltuiala, updateCheltuiala, deleteCheltuiala, initStorage } from '../../lib/storage'
+import { getCheltuieli, addCheltuiala, updateCheltuiala, deleteCheltuiala } from '../../lib/storage'
 import { formatRon, formatDate, filterByDateRange, CATEGORII_CHELTUIELI } from '../../lib/calculations'
 import { exportCheltuieli } from '../../lib/export'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
@@ -29,12 +29,12 @@ export default function CheltuieliPage() {
   const [filterCat, setFilterCat] = useState('')
   const [filterTara, setFilterTara] = useState('')
 
-  const load = useCallback(() => { initStorage(); setCheltuieli(getCheltuieli()) }, [])
+  const load = useCallback(async () => { setCheltuieli(await getCheltuieli()) }, [])
   useEffect(() => { load() }, [load])
 
-  const handleSave = (c) => {
-    if (editC) updateCheltuiala(c)
-    else addCheltuiala(c)
+  const handleSave = async (c) => {
+    if (editC) await updateCheltuiala(c)
+    else await addCheltuiala(c)
     load()
   }
 
@@ -193,7 +193,7 @@ export default function CheltuieliPage() {
       </div>
 
       <CheltuialaModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={handleSave} cheltuiala={editC} />
-      <ConfirmDialog open={!!confirmId} onClose={() => setConfirmId(null)} onConfirm={() => { deleteCheltuiala(confirmId); load() }} title="Șterge cheltuială" message="Ești sigur că vrei să ștergi această cheltuială?" />
+      <ConfirmDialog open={!!confirmId} onClose={() => setConfirmId(null)} onConfirm={async () => { await deleteCheltuiala(confirmId); load() }} title="Șterge cheltuială" message="Ești sigur că vrei să ștergi această cheltuială?" />
     </AppLayout>
   )
 }

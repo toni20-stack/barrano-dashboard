@@ -4,7 +4,7 @@ import { TrendingUp, DollarSign, ShoppingCart, Percent, RefreshCw, X, ChevronDow
 import AppLayout from '../../components/AppLayout'
 import Topbar from '../../components/Topbar'
 import { KPICard } from '../../components/ui'
-import { getProduse, getVanzari, getCheltuieli, initStorage, resetStorage, clearAllData } from '../../lib/storage'
+import { getProduse, getVanzari, getCheltuieli, clearAllData } from '../../lib/storage'
 import { calcVanzareProfit, formatRon, formatRon0, formatPct, filterByDateRange } from '../../lib/calculations'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
@@ -76,7 +76,10 @@ export default function DashboardPage() {
   const [dateFrom, setDateFrom] = useState(`${new Date().getFullYear()}-01-01`)
   const [dateTo, setDateTo] = useState(new Date().toISOString().slice(0,10))
 
-  const load = useCallback(() => { initStorage(); setProduse(getProduse()); setVanzari(getVanzari()); setCheltuieli(getCheltuieli()) }, [])
+  const load = useCallback(async () => {
+    const [p, v, c] = await Promise.all([getProduse(), getVanzari(), getCheltuieli()])
+    setProduse(p); setVanzari(v); setCheltuieli(c)
+  }, [])
   useEffect(() => { load() }, [load])
 
   const filteredV = useMemo(() => filterByDateRange(vanzari, 'data', dateFrom, dateTo).filter(v => !v.isStorno), [vanzari, dateFrom, dateTo])
@@ -157,7 +160,7 @@ export default function DashboardPage() {
   return (
     <AppLayout>
       <Topbar title="Dashboard" subtitle="Vizualizare globală a performanței" dateFrom={dateFrom} dateTo={dateTo} onDateFrom={setDateFrom} onDateTo={setDateTo}>
-        <button className="btn-secondary" style={{fontSize:12,color:"#dc2626",borderColor:"#fecaca"}} onClick={()=>{ if(window.confirm("Ești sigur? Toate datele vor fi șterse definitiv. Această acțiune nu poate fi anulată.")) { clearAllData(); load(); } }}><RefreshCw size={13}/> Șterge toate datele</button>
+        <button className="btn-secondary" style={{fontSize:12,color:"#dc2626",borderColor:"#fecaca"}} onClick={async ()=>{ if(window.confirm("Ești sigur? Toate datele vor fi șterse definitiv. Această acțiune nu poate fi anulată.")) { await clearAllData(); load(); } }}><RefreshCw size={13}/> Șterge toate datele</button>
       </Topbar>
 
       <div style={{padding:'24px 28px', display:'flex', flexDirection:'column', gap:20}}>

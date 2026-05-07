@@ -5,7 +5,7 @@ import AppLayout from '../../components/AppLayout'
 import Topbar from '../../components/Topbar'
 import ProduseModal from '../../components/produse/ProduseModal'
 import { ConfirmDialog, EmptyState, Badge, MarjaCell, ProfitCell } from '../../components/ui'
-import { getProduse, addProdus, updateProdus, deleteProdus, initStorage } from '../../lib/storage'
+import { getProduse, addProdus, updateProdus, deleteProdus } from '../../lib/storage'
 import { calcCostTotal, formatRon, formatPct } from '../../lib/calculations'
 import { exportProduse } from '../../lib/export'
 import { v4 as uuidv4 } from 'uuid'
@@ -17,27 +17,26 @@ export default function ProducePage() {
   const [confirmId, setConfirmId] = useState(null)
   const [search, setSearch] = useState('')
 
-  const load = useCallback(() => {
-    initStorage()
-    setProduse(getProduse())
+  const load = useCallback(async () => {
+    setProduse(await getProduse())
   }, [])
 
   useEffect(() => { load() }, [load])
 
-  const handleSave = (p) => {
-    if (editProdus) updateProdus(p)
-    else addProdus(p)
+  const handleSave = async (p) => {
+    if (editProdus) await updateProdus(p)
+    else await addProdus(p)
     load()
   }
 
-  const handleDelete = (id) => {
-    deleteProdus(id)
+  const handleDelete = async (id) => {
+    await deleteProdus(id)
     load()
   }
 
-  const handleDuplicate = (p) => {
+  const handleDuplicate = async (p) => {
     const nou = { ...p, id: uuidv4(), numeBarrano: p.numeBarrano + ' (copie)', createdAt: new Date().toISOString().slice(0,10) }
-    addProdus(nou)
+    await addProdus(nou)
     load()
   }
 

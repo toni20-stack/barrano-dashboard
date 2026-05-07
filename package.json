@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.105.3",
     "lucide-react": "^0.383.0",
     "next": "14.2.3",
     "pdfjs-dist": "^5.7.284",

@@ -4,7 +4,7 @@ import { BarChart3, AlertTriangle } from 'lucide-react'
 import AppLayout from '../../components/AppLayout'
 import Topbar from '../../components/Topbar'
 import { EmptyState, MarjaCell, ProfitCell } from '../../components/ui'
-import { getVanzari, getProduse, getCheltuieli, initStorage } from '../../lib/storage'
+import { getVanzari, getProduse, getCheltuieli } from '../../lib/storage'
 import { calcCostTotal, calcVanzareProfit, formatRon, formatPct, filterByDateRange } from '../../lib/calculations'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -24,11 +24,9 @@ export default function AnalizaPage() {
   const [sortBy,     setSortBy]     = useState('venit')
   const [filterTara, setFilterTara] = useState('')
 
-  const load = useCallback(() => {
-    initStorage()
-    setVanzari(getVanzari())
-    setProduse(getProduse())
-    setCheltuieli(getCheltuieli())
+  const load = useCallback(async () => {
+    const [v, p, c] = await Promise.all([getVanzari(), getProduse(), getCheltuieli()])
+    setVanzari(v); setProduse(p); setCheltuieli(c)
   }, [])
   useEffect(() => { load() }, [load])
 
