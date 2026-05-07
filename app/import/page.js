@@ -1057,63 +1057,7 @@ export default function ImportPage() {
         {/* ═══ MARKETING ═══ */}
         {tab==='marketing' && (
           <div className="space-y-4">
-            <div className="card p-4 space-y-3">
-              <p className="text-xs font-bold text-slate-600">Import credite eMAG Ads:</p>
-              <ol className="text-xs text-slate-500 space-y-1 ml-4 list-decimal">
-                <li>eMAG Seller → <strong>Marketing → eMAG Ads → Credite</strong></li>
-                <li>Apasă <strong>Export Excel</strong></li>
-              </ol>
-              <InfoBox color="amber">Se importă toate creditele din fișier (Pre-paid + Free) ca cheltuieli Marketing.</InfoBox>
-            </div>
-
-            {!adsData && !adsResult && <DropZone onFile={handleAds} loading={loading} accept=".xlsx,.xls" hint="Export credite eMAG Ads (.xlsx)"/>}
-
-            {adsResult && <DoneCard title="eMAG Ads importate!"
-              stats={[['Cheltuieli adăugate',adsResult.cheltuieli,'text-orange-600']]}
-              links={[['/cheltuieli','→ Cheltuieli']]} onReset={()=>setAdsResult(null)}/>}
-
-            {adsData && !adsResult && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-3">
-                  {[['Pre-paid',adsData.prepaid.length,'text-orange-600'],['Free',adsData.free.length,'text-emerald-600'],
-                    ['Total de importat',ron([...adsData.prepaid,...adsData.free].reduce((s,p)=>s+p.valoare,0)),'text-slate-900']
-                  ].map(([l,v,c])=>(
-                    <div key={l} className="card p-3"><p className="text-[10px] font-bold text-slate-400 uppercase">{l}</p><p className={`text-lg font-black mt-1 ${c}`}>{v}</p></div>
-                  ))}
-                </div>
-                <div className="card overflow-hidden">
-                  <div className="overflow-x-auto max-h-72 overflow-y-auto">
-                    <table className="w-full">
-                      <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
-                        <tr>{['Data','Tip','Valoare (RON)'].map(h=><th key={h} className="table-header text-left px-3 py-2">{h}</th>)}</tr>
-                      </thead>
-                      <tbody>
-                        {[...adsData.prepaid,...adsData.free].map(p=>(
-                          <tr key={p._id} className="table-row">
-                            <td className="table-cell text-xs text-slate-600">{p.data}</td>
-                            <td className="table-cell">
-                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${p.tip==='Pre-paid'?'bg-orange-100 text-orange-700':'bg-emerald-100 text-emerald-700'}`}>{p.tip}</span>
-                            </td>
-                            <td className="table-cell text-right font-mono text-xs font-bold text-slate-900">{ron(p.valoare)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-                <div className="flex gap-3 justify-end">
-                  <button className="btn-secondary" onClick={()=>setAdsData(null)}>← Alt fișier</button>
-                  <button className="btn-primary" onClick={async ()=>setAdsResult(await doImportAds([...adsData.prepaid,...adsData.free],adsData.fisier))}><CheckCircle size={14}/> Importă {adsData.prepaid.length+adsData.free.length} credite</button>
-                </div>
-              </div>
-            )}
-
-            {!adsData && !adsResult && (
-              <div className="border-t border-slate-100 pt-4">
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-3">Alte cheltuieli Marketing (Facebook, Google, etc.)</p>
-                <SimpleImport categorie="Marketing"/>
-              </div>
-            )}
+            <SimpleImport categorie="Marketing"/>
           </div>
         )}
 
