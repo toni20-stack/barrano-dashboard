@@ -282,3 +282,27 @@ input[type="checkbox"] { accent-color: var(--b-black); }
 /* Animate pulse */
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
 .animate-pulse { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
+
+/* ── MOBILE ──────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* Padding pagini */
+  .p-6 { padding: 1rem !important; }
+  .p-5 { padding: 0.875rem !important; }
+
+  /* Table celule mai compacte */
+  .table-cell { padding: 8px 10px !important; font-size: 12px !important; }
+  .table-header { padding: 6px 10px !important; }
+
+  /* Modal — bottom sheet pe mobil */
+  .modal-overlay { align-items: flex-end !important; padding: 0 !important; }
+  .modal-box { border-radius: 20px 20px 0 0 !important; max-height: 92vh !important; }
+
+  /* Butoane mai mari (touch targets) */
+  .btn-primary, .btn-secondary { padding: 10px 16px !important; font-size: 13px !important; }
+
+  /* Input mai mare pe touch */
+  .input { padding: 11px 12px !important; font-size: 14px !important; }
+
+  /* Card padding mai mic */
+  .kpi-card { padding: 0.875rem !important; }
+}
