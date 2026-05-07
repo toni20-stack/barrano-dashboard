@@ -12,6 +12,12 @@ const ron = v => new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',
 function fmtData(s) {
   if (!s) return ''
   s = String(s).trim()
+  // Excel serial date (ex: 45382)
+  const num = parseFloat(s)
+  if (!isNaN(num) && s === String(Math.floor(num)) && num > 40000 && num < 60000) {
+    const d = new Date(Math.round((num - 25569) * 86400 * 1000))
+    return d.toISOString().slice(0,10)
+  }
   if (s.includes('/') && s.length <= 10) { const p=s.split('/'); return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}` }
   if (s.includes('.') && s.split('.')[0].length <= 2 && s.split('.').length === 3) { const p=s.split('.'); return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}` }
   if (s.includes('-') && s.split('-')[0].length===2) { const p=s.split('-'); return `${p[2]}-${p[1]}-${p[0]}` }
@@ -90,9 +96,8 @@ function parseGenericExcel(buf) {
 
   const dateIdx = headersLow.findIndex(h =>
     h.includes('data') || h.includes('date') || h.includes('zi') || h.includes('emitere') || h.includes('scadent'))
-  const sumaIdx = headersLow.findIndex(h =>
-    h.includes('suma') || h.includes('valoare') || h.includes('total') ||
-    h.includes('amount') || h.includes('pret') || h.includes('net') || h.includes('tva'))
+  const findCol = (...kws) => { for (const kw of kws) { const i = headersLow.findIndex(h => h.includes(kw)); if (i >= 0) return i } return -1 }
+  const sumaIdx = findCol('total', 'suma', 'amount', 'valoare', 'pret', 'net')
   const descriereIdx = headersLow.findIndex(h =>
     h.includes('descriere') || h.includes('denumire') || h.includes('produs') ||
     h.includes('serviciu') || h.includes('description') || h.includes('furnizor') ||
