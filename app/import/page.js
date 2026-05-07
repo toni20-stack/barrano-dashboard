@@ -3,7 +3,7 @@ import { useState, useRef } from 'react'
 import * as XLSX from 'xlsx'
 import AppLayout from '../../components/AppLayout'
 import Topbar from '../../components/Topbar'
-import { Upload, CheckCircle, AlertCircle, Pencil, Check, X, FileText, ShoppingBag, Megaphone, Truck, CreditCard, Building2, Package, Plus } from 'lucide-react'
+import { Upload, CheckCircle, AlertCircle, Pencil, Check, X, FileText, ShoppingBag, Megaphone, Truck, CreditCard, Building2, Package, Plus, FileSpreadsheet, FileType } from 'lucide-react'
 import { getVanzari, saveVanzari, getProduse, saveProduse, getCheltuieli, saveCheltuieli, getIncasari, saveIncasari, addCheltuiala, initStorage } from '../../lib/storage'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -13,6 +13,7 @@ function fmtData(s) {
   if (!s) return ''
   s = String(s).trim()
   if (s.includes('/') && s.length <= 10) { const p=s.split('/'); return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}` }
+  if (s.includes('.') && s.split('.')[0].length <= 2 && s.split('.').length === 3) { const p=s.split('.'); return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}` }
   if (s.includes('-') && s.split('-')[0].length===2) { const p=s.split('-'); return `${p[2]}-${p[1]}-${p[0]}` }
   if (s.length > 10) { const d=new Date(s); if(!isNaN(d)) return d.toISOString().slice(0,10) }
   return s.slice(0,10)
@@ -76,6 +77,100 @@ function parseSmartBill(buf) {
     else normale.push(obj)
   })
   return {normale, storno, cifColName, headers}
+}
+
+// Parser Excel generic — detectează coloane automat
+function parseGenericExcel(buf) {
+  const wb = XLSX.read(buf, {type:'array'})
+  const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''})
+  if (raw.length < 2) throw new Error('Fișierul este gol sau nu are date.')
+
+  const headers = raw[0].map(h => String(h).trim())
+  const headersLow = headers.map(h => h.toLowerCase())
+
+  const dateIdx = headersLow.findIndex(h =>
+    h.includes('data') || h.includes('date') || h.includes('zi') || h.includes('emitere') || h.includes('scadent'))
+  const sumaIdx = headersLow.findIndex(h =>
+    h.includes('suma') || h.includes('valoare') || h.includes('total') ||
+    h.includes('amount') || h.includes('pret') || h.includes('net') || h.includes('tva'))
+  const descriereIdx = headersLow.findIndex(h =>
+    h.includes('descriere') || h.includes('denumire') || h.includes('produs') ||
+    h.includes('serviciu') || h.includes('description') || h.includes('furnizor') ||
+    h.includes('nota') || h.includes('detalii') || h.includes('text'))
+  const docIdx = headersLow.findIndex(h =>
+    h.includes('factura') || h.includes('document') || h.includes('numar') ||
+    h.includes('serie') || h.includes('invoice') || (h.includes('nr') && !h.includes('transport')))
+
+  const rows = raw.slice(1).filter(r => r.some(c => c !== '')).map((row, i) => {
+    const rawSuma = String(row[sumaIdx] ?? '').trim()
+    // Suportă format românesc: 1.234,56 sau internațional: 1234.56
+    const sumaStr = rawSuma.includes(',') && rawSuma.includes('.')
+      ? rawSuma.replace(/\./g, '').replace(',', '.') // 1.234,56 → 1234.56
+      : rawSuma.replace(',', '.') // 1234,56 → 1234.56
+    const suma = Math.abs(parseFloat(sumaStr) || 0)
+
+    const descriere = descriereIdx >= 0 ? String(row[descriereIdx] || '').trim() : ''
+    const doc = docIdx >= 0 ? String(row[docIdx] || '').trim() : ''
+
+    return {
+      _id: `gx_${i}`,
+      data: dateIdx >= 0 ? fmtData(String(row[dateIdx] || '')) : '',
+      suma,
+      descriere: [descriere, doc].filter(Boolean).join(' — '),
+    }
+  }).filter(r => r.suma > 0)
+
+  if (rows.length === 0) throw new Error('Nu s-au găsit rânduri cu sume valide. Verifică că fișierul are o coloană cu suma/valoarea.')
+
+  return { headers, dateIdx, sumaIdx, descriereIdx, docIdx, rows }
+}
+
+// Extractor text din PDF (fără dependențe externe — funcționează pentru PDF-uri text)
+function extractPDFTextRaw(buf) {
+  let raw = ''
+  for (let i = 0; i < buf.length; i++) raw += String.fromCharCode(buf[i])
+
+  const texts = []
+  // Extrage string-uri PDF: (text)Tj sau (text)'
+  const re = /\(([^)\\]*(?:\\[\s\S][^)\\]*)*)\)\s*(?:Tj|'|"|\bTJ\b)/g
+  let m
+  while ((m = re.exec(raw)) !== null) {
+    const t = m[1]
+      .replace(/\\n/g, ' ').replace(/\\r/g, ' ')
+      .replace(/\\\(/g, '(').replace(/\\\)/g, ')').replace(/\\\\/g, '\\')
+    if (t.trim().length > 0) texts.push(t.trim())
+  }
+
+  // Fallback: extrage text ASCII direct
+  if (texts.length === 0) {
+    let chunk = ''
+    for (let i = 0; i < buf.length; i++) {
+      const c = buf[i]
+      if (c >= 32 && c <= 126) chunk += String.fromCharCode(c)
+      else if (chunk.length > 3) { texts.push(chunk); chunk = '' }
+      else chunk = ''
+    }
+  }
+  return texts.join(' ')
+}
+
+function parsePDFText(text) {
+  // Date: DD.MM.YYYY sau DD/MM/YYYY
+  const dateRe = /(\d{1,2}[./]\d{1,2}[./]\d{4})/g
+  const dates = [...text.matchAll(dateRe)].map(m => m[1])
+
+  // Sume în format românesc: 1.234,56 sau 1234,56
+  const amountRe = /(\d{1,3}(?:\.\d{3})*,\d{2})/g
+  const amounts = [...text.matchAll(amountRe)]
+    .map(m => parseFloat(m[1].replace(/\./g, '').replace(',', '.')))
+    .filter(a => a > 0 && a < 10000000)
+
+  // Deduplicare și sortare descrescătoare
+  const uniqueAmounts = [...new Set(amounts)].sort((a, b) => b - a)
+  const total = uniqueAmounts.length > 0 ? uniqueAmounts[0] : 0
+  const date = dates.length > 0 ? fmtData(dates[0]) : new Date().toISOString().slice(0, 10)
+
+  return { date, total, amounts: uniqueAmounts, dates }
 }
 
 const EMAG_IGNORAT=['FAACP','FACCP','FAPC','FAPOF','FAECCP','FAECP']
@@ -240,194 +335,270 @@ function InfoBox({color, children}) {
   return <div className={`p-3 rounded-lg border text-[11px] font-semibold ${cls[color]||cls.slate}`}>{children}</div>
 }
 
-function ManualForm({ categorie }) {
-  const [data, setData] = useState(new Date().toISOString().slice(0,10))
-  const [suma, setSuma] = useState('')
-  const [descriere, setDescriere] = useState('')
-  const [tara, setTara] = useState('')
-  const [saved, setSaved] = useState(false)
-
-  const handleSave = () => {
-    const s = parseFloat(suma)
-    if (!s || s <= 0) return
-    initStorage()
-    addCheltuiala({ id: uuidv4(), categorie, suma: s, data, descriere, tara, sursa: 'manual' })
-    setSuma(''); setDescriere(''); setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
-  }
-
-  return (
-    <div className="card p-5 max-w-lg">
-      <p className="text-sm font-bold text-slate-800 mb-4">Adaugă cheltuială — {categorie}</p>
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-[11px] font-bold text-slate-500 mb-1">Data</label>
-            <input type="date" className="input w-full" value={data} onChange={e=>setData(e.target.value)}/>
-          </div>
-          <div>
-            <label className="block text-[11px] font-bold text-slate-500 mb-1">Sumă (RON)</label>
-            <input type="number" className="input w-full" value={suma} onChange={e=>setSuma(e.target.value)} placeholder="0.00" min="0" step="0.01"/>
-          </div>
-        </div>
-        <div>
-          <label className="block text-[11px] font-bold text-slate-500 mb-1">Descriere</label>
-          <input type="text" className="input w-full" value={descriere} onChange={e=>setDescriere(e.target.value)} placeholder="ex: factură mai 2025"/>
-        </div>
-        <div>
-          <label className="block text-[11px] font-bold text-slate-500 mb-1">Piață</label>
-          <select className="input w-full" value={tara} onChange={e=>setTara(e.target.value)}>
-            <option value="">Toate piețele (comun)</option>
-            <option value="RO">🇷🇴 România</option>
-            <option value="BG">🇧🇬 Bulgaria</option>
-            <option value="HU">🇭🇺 Ungaria</option>
-          </select>
-        </div>
-        <button className="btn-primary w-full justify-center" onClick={handleSave}>
-          {saved ? '✓ Adăugat în Cheltuieli' : <span className="flex items-center justify-center gap-2"><Plus size={14}/>Adaugă cheltuială</span>}
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function parseFacturiSimple(buf) {
-  const wb = XLSX.read(buf, {type:'array'})
-  const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''})
-  if (raw.length < 2) throw new Error('Fișierul nu conține date.')
-  const headers = raw[0].map(h => String(h).trim().toLowerCase())
-
-  const find = (...keys) => headers.findIndex(h => keys.some(k => h.includes(k)))
-  const iData     = find('data', 'date', 'zi', 'emitere', 'scaden')
-  const iSuma     = find('suma', 'valoare', 'total', 'amount', 'pret', 'price')
-  const iDescriere= find('descriere', 'description', 'denumire', 'produs', 'serviciu', 'nota', 'text', 'detalii', 'furnizor', 'beneficiar')
-  const iDocument = find('document', 'factura', 'numar', 'serie', 'invoice', 'nr')
-
-  if (iSuma === -1) throw new Error('Nu am găsit coloana de sumă. Asigură-te că fișierul are o coloană numită Suma, Valoare sau Total.')
-
-  const rows = raw.slice(1).filter(r => r.some(c => c !== ''))
-  const parsed = rows.map((r, i) => {
-    const suma = parseFloat(String(r[iSuma] || '').replace(/[^\d.,-]/g, '').replace(',', '.')) || 0
-    return {
-      _id: `simple_${i}`,
-      data: iData >= 0 ? fmtData(String(r[iData] || '')) : '',
-      suma: Math.abs(suma),
-      isNegativ: suma < 0,
-      descriere: iDescriere >= 0 ? String(r[iDescriere] || '').trim() : '',
-      document: iDocument >= 0 ? String(r[iDocument] || '').trim() : '',
-    }
-  }).filter(r => r.suma > 0)
-
-  return { rows: parsed, cols: { iData, iSuma, iDescriere, iDocument }, rawHeaders: raw[0] }
-}
-
+// Componenta universală de import fișier (Excel/PDF) + formular manual
 function SimpleImport({ categorie }) {
-  const [data, setData] = useState(null)
-  const [tara, setTara] = useState('')
+  const [mode, setMode] = useState('idle')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [done, setDone] = useState(null)
-  const ref = useRef()
 
-  const handleFile = async file => {
-    setLoading(true); setError(''); setDone(null)
+  // Excel
+  const [excelData, setExcelData] = useState(null)
+  const [excelTara, setExcelTara] = useState('')
+
+  // PDF
+  const [pdfParsed, setPdfParsed] = useState(null)
+  const [pdfData, setPdfData] = useState('')
+  const [pdfSuma, setPdfSuma] = useState('')
+  const [pdfDescriere, setPdfDescriere] = useState('')
+  const [pdfTara, setPdfTara] = useState('')
+
+  // Manual
+  const [manData, setManData] = useState(new Date().toISOString().slice(0,10))
+  const [manSuma, setManSuma] = useState('')
+  const [manDescriere, setManDescriere] = useState('')
+  const [manTara, setManTara] = useState('')
+  const [manSaved, setManSaved] = useState(false)
+
+  const [importCount, setImportCount] = useState(0)
+
+  const handleFile = async (file) => {
+    setLoading(true); setError('')
     try {
       const buf = await file.arrayBuffer()
-      setData(parseFacturiSimple(new Uint8Array(buf)))
-    } catch(e) { setError(e.message) }
+      const arr = new Uint8Array(buf)
+      const name = file.name.toLowerCase()
+
+      if (name.endsWith('.pdf')) {
+        const text = extractPDFTextRaw(arr)
+        const parsed = parsePDFText(text)
+        setPdfParsed({ ...parsed, fileName: file.name })
+        setPdfData(parsed.date)
+        setPdfSuma(parsed.total > 0 ? String(parsed.total) : '')
+        setPdfDescriere(file.name.replace(/\.pdf$/i, ''))
+        setMode('pdf')
+      } else {
+        const data = parseGenericExcel(arr)
+        setExcelData(data)
+        setMode('excel')
+      }
+    } catch(e) {
+      setError(e.message)
+    }
     setLoading(false)
   }
 
-  const handleImport = () => {
+  const importExcel = () => {
     initStorage()
-    const noi = data.rows.map(r => ({
+    const noi = excelData.rows.map(r => ({
       id: uuidv4(), categorie, suma: r.suma, data: r.data,
-      descriere: [r.descriere, r.document].filter(Boolean).join(' — ') || categorie,
-      tara, sursa: 'excel_import', isNegativ: r.isNegativ
+      descriere: r.descriere || '', tara: excelTara, sursa: 'excel_import'
     }))
     saveCheltuieli([...getCheltuieli(), ...noi])
-    setDone(noi.length); setData(null)
+    setImportCount(noi.length)
+    setMode('done')
   }
 
-  if (done !== null) return (
-    <div className="card p-8 text-center max-w-md">
-      <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-3"><CheckCircle size={24} className="text-emerald-500"/></div>
-      <p className="font-bold text-slate-800 mb-1">{done} înregistrări adăugate la <span className="text-orange-600">{categorie}</span></p>
-      <div className="flex gap-3 justify-center mt-4">
-        <a href="/cheltuieli" className="btn-primary">→ Cheltuieli</a>
-        <button className="btn-secondary" onClick={()=>setDone(null)}>Import alt fișier</button>
-      </div>
-    </div>
+  const importPDF = () => {
+    const s = parseFloat(pdfSuma)
+    if (!s || s <= 0) { setError('Suma trebuie să fie mai mare ca 0.'); return }
+    if (!pdfData) { setError('Completează data facturii.'); return }
+    initStorage()
+    addCheltuiala({ id: uuidv4(), categorie, suma: s, data: pdfData, descriere: pdfDescriere, tara: pdfTara, sursa: 'pdf_import' })
+    setImportCount(1)
+    setMode('done')
+  }
+
+  const importManual = () => {
+    const s = parseFloat(manSuma)
+    if (!s || s <= 0) return
+    initStorage()
+    addCheltuiala({ id: uuidv4(), categorie, suma: s, data: manData, descriere: manDescriere, tara: manTara, sursa: 'manual' })
+    setManSuma(''); setManDescriere(''); setManSaved(true)
+    setTimeout(() => setManSaved(false), 2500)
+  }
+
+  const reset = () => { setMode('idle'); setExcelData(null); setPdfParsed(null); setError('') }
+
+  if (mode === 'done') return (
+    <DoneCard
+      title={`${importCount} ${importCount === 1 ? 'cheltuială importată' : 'cheltuieli importate'} în ${categorie}`}
+      stats={[['Înregistrări', importCount, 'text-orange-600']]}
+      links={[['/cheltuieli', '→ Cheltuieli']]}
+      onReset={reset}
+    />
   )
 
   return (
     <div className="space-y-4">
-      {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-600 font-semibold">{error}</div>}
+      {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-600 flex items-start gap-2"><AlertCircle size={13} className="shrink-0 mt-0.5"/>{error}</div>}
 
-      {!data && (
-        <div onClick={()=>ref.current?.click()} onDragOver={e=>e.preventDefault()}
-          onDrop={e=>{e.preventDefault();handleFile(e.dataTransfer.files[0])}}
-          className="border-2 border-dashed border-slate-300 rounded-2xl p-10 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/50 transition-all">
-          {loading
-            ? <div className="flex flex-col items-center gap-3"><div className="w-8 h-8 rounded-full border-4 border-orange-400 border-t-transparent animate-spin"/><p className="text-sm font-semibold text-orange-500">Se procesează...</p></div>
-            : <><div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3"><Upload size={20} className="text-slate-400"/></div>
-               <p className="text-sm font-bold text-slate-700">Trage fișierul Excel aici sau apasă</p>
-               <p className="text-xs text-slate-400 mt-1">Fișier Excel cu coloane: Data, Suma, Descriere (.xlsx / .xls)</p></>
-          }
-          <input ref={ref} type="file" accept=".xlsx,.xls" className="hidden" onChange={e=>{handleFile(e.target.files[0]);e.target.value=''}}/>
-        </div>
+      {/* ── IDLE: drop zone ── */}
+      {mode === 'idle' && (
+        <DropZone onFile={handleFile} loading={loading} accept=".xlsx,.xls,.pdf"
+          hint="Excel (.xlsx/.xls) sau PDF — toate cheltuielile merg la categoria curentă"/>
       )}
 
-      {data && (
+      {/* ── EXCEL preview ── */}
+      {mode === 'excel' && excelData && (
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
-            <div className="card p-3"><p className="text-[10px] font-bold text-slate-400 uppercase">Rânduri detectate</p><p className="text-xl font-black text-slate-900 mt-1">{data.rows.length}</p></div>
-            <div className="card p-3"><p className="text-[10px] font-bold text-slate-400 uppercase">Total</p><p className="text-xl font-black text-slate-900 mt-1">{ron(data.rows.reduce((s,r)=>s+r.suma,0))}</p></div>
-            <div className="card p-3">
-              <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Piață</p>
-              <select className="text-xs font-bold border border-slate-200 rounded-lg px-2 py-1 w-full bg-white" value={tara} onChange={e=>setTara(e.target.value)}>
-                <option value="">Toate (comun)</option>
-                <option value="RO">🇷🇴 România</option>
-                <option value="BG">🇧🇬 Bulgaria</option>
-                <option value="HU">🇭🇺 Ungaria</option>
-              </select>
-            </div>
+            {[
+              ['Rânduri', excelData.rows.length, 'text-slate-900'],
+              ['Total', ron(excelData.rows.reduce((s,r)=>s+r.suma,0)), 'text-orange-600'],
+              ['Categorie', categorie, 'text-slate-700'],
+            ].map(([l,v,c]) => (
+              <div key={l} className="card p-3">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">{l}</p>
+                <p className={`text-sm font-black mt-1 ${c}`}>{v}</p>
+              </div>
+            ))}
+          </div>
+
+          <InfoBox color="blue">
+            Coloane detectate:{' '}
+            {excelData.dateIdx >= 0 ? `Data="${excelData.headers[excelData.dateIdx]}"` : '⚠️ Data negăsită'}{' '}
+            · {excelData.sumaIdx >= 0 ? `Sumă="${excelData.headers[excelData.sumaIdx]}"` : '⚠️ Sumă negăsită'}
+            {excelData.descriereIdx >= 0 ? ` · Descriere="${excelData.headers[excelData.descriereIdx]}"` : ''}
+          </InfoBox>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-bold text-slate-500">Piață:</span>
+            {[['','Toate'],['RO','🇷🇴 RO'],['BG','🇧🇬 BG'],['HU','🇭🇺 HU']].map(([v,l]) => (
+              <button key={v} onClick={() => setExcelTara(v)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${excelTara===v?'bg-orange-500 text-white border-orange-500':'bg-white text-slate-600 border-slate-200'}`}>
+                {l}
+              </button>
+            ))}
           </div>
 
           <div className="card overflow-hidden">
-            <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100">
-              <p className="text-[11px] text-slate-500 font-semibold">
-                Coloane detectate: {[data.cols.iData>=0&&'Data', data.cols.iSuma>=0&&'Suma', data.cols.iDescriere>=0&&'Descriere', data.cols.iDocument>=0&&'Document'].filter(Boolean).join(' · ')}
-              </p>
-            </div>
-            <div className="overflow-x-auto max-h-64 overflow-y-auto">
+            <div className="overflow-x-auto max-h-72 overflow-y-auto">
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
                   <tr>
                     <th className="table-header text-left px-3 py-2">Data</th>
                     <th className="table-header text-left px-3 py-2">Descriere</th>
-                    <th className="table-header text-left px-3 py-2">Document</th>
                     <th className="table-header text-right px-3 py-2">Sumă</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.rows.slice(0,100).map(r => (
+                  {excelData.rows.map(r => (
                     <tr key={r._id} className="table-row">
-                      <td className="table-cell text-xs text-slate-500 whitespace-nowrap">{r.data||'—'}</td>
-                      <td className="table-cell text-xs text-slate-700 max-w-[200px] truncate">{r.descriere||'—'}</td>
-                      <td className="table-cell text-xs text-slate-500">{r.document||'—'}</td>
-                      <td className={`table-cell text-right font-mono text-xs font-bold ${r.isNegativ?'text-emerald-600':'text-slate-900'}`}>{r.isNegativ?'-':''}{ron(r.suma)}</td>
+                      <td className="table-cell text-xs text-slate-500 whitespace-nowrap">{r.data || '—'}</td>
+                      <td className="table-cell text-xs text-slate-700 max-w-xs truncate">{r.descriere || '—'}</td>
+                      <td className="table-cell text-right font-mono text-xs font-bold text-slate-900">{ron(r.suma)}</td>
                     </tr>
                   ))}
                 </tbody>
+                <tfoot className="bg-slate-50 border-t-2 border-slate-200">
+                  <tr>
+                    <td className="px-3 py-2 text-xs font-bold text-slate-500" colSpan={2}>Total ({excelData.rows.length} rânduri)</td>
+                    <td className="px-3 py-2 text-right font-bold text-slate-900 font-mono text-xs">{ron(excelData.rows.reduce((s,r)=>s+r.suma,0))}</td>
+                  </tr>
+                </tfoot>
               </table>
-              {data.rows.length>100&&<p className="text-center py-2 text-xs text-slate-400">Se afișează primele 100. Toate vor fi importate.</p>}
             </div>
           </div>
 
           <div className="flex gap-3 justify-end">
-            <button className="btn-secondary" onClick={()=>setData(null)}>← Alt fișier</button>
-            <button className="btn-primary" onClick={handleImport}><CheckCircle size={14}/> Importă {data.rows.length} rânduri → {categorie}</button>
+            <button className="btn-secondary" onClick={reset}>← Alt fișier</button>
+            <button className="btn-primary" onClick={importExcel}>
+              <CheckCircle size={14}/> Importă {excelData.rows.length} rânduri → {categorie}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── PDF form ── */}
+      {mode === 'pdf' && (
+        <div className="space-y-3">
+          {pdfParsed?.amounts.length > 0
+            ? <InfoBox color="green">PDF procesat: {pdfParsed?.fileName} · Sume detectate: {pdfParsed.amounts.slice(0,6).map(a=>ron(a)).join(' · ')}</InfoBox>
+            : <InfoBox color="amber">PDF procesat: {pdfParsed?.fileName} · Nu s-au detectat sume automat — completează manual.</InfoBox>
+          }
+
+          <div className="card p-5 max-w-lg space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">Data facturii</label>
+                <input type="date" className="input w-full" value={pdfData} onChange={e=>setPdfData(e.target.value)}/>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">Sumă totală (RON)</label>
+                <input type="number" className="input w-full" value={pdfSuma} onChange={e=>setPdfSuma(e.target.value)} step="0.01" min="0" placeholder="0.00"/>
+              </div>
+            </div>
+
+            {pdfParsed?.amounts.length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mb-1.5">Selectează suma din PDF:</p>
+                <div className="flex gap-1.5 flex-wrap">
+                  {pdfParsed.amounts.slice(0,8).map((a,i) => (
+                    <button key={i} onClick={() => setPdfSuma(String(a))}
+                      className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all ${String(a) === pdfSuma ? 'bg-orange-500 text-white border-orange-500' : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-orange-300'}`}>
+                      {ron(a)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">Descriere</label>
+              <input type="text" className="input w-full" value={pdfDescriere} onChange={e=>setPdfDescriere(e.target.value)} placeholder="ex: Factură mai 2025"/>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">Piață</label>
+              <select className="input w-full" value={pdfTara} onChange={e=>setPdfTara(e.target.value)}>
+                <option value="">Toate piețele (comun)</option>
+                <option value="RO">🇷🇴 România</option>
+                <option value="BG">🇧🇬 Bulgaria</option>
+                <option value="HU">🇭🇺 Ungaria</option>
+              </select>
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <button className="btn-secondary flex-1 justify-center" onClick={reset}>← Alt fișier</button>
+              <button className="btn-primary flex-1 justify-center" onClick={importPDF}>
+                <CheckCircle size={14}/> Salvează în {categorie}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Formular manual (întotdeauna vizibil când nu e preview) ── */}
+      {(mode === 'idle') && (
+        <div className="border-t border-slate-100 pt-4">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-3">Sau adaugă manual</p>
+          <div className="card p-5 max-w-lg space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">Data</label>
+                <input type="date" className="input w-full" value={manData} onChange={e=>setManData(e.target.value)}/>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">Sumă (RON)</label>
+                <input type="number" className="input w-full" value={manSuma} onChange={e=>setManSuma(e.target.value)} placeholder="0.00" min="0" step="0.01"/>
+              </div>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">Descriere</label>
+              <input type="text" className="input w-full" value={manDescriere} onChange={e=>setManDescriere(e.target.value)} placeholder="ex: factură mai 2025"/>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">Piață</label>
+              <select className="input w-full" value={manTara} onChange={e=>setManTara(e.target.value)}>
+                <option value="">Toate piețele (comun)</option>
+                <option value="RO">🇷🇴 România</option>
+                <option value="BG">🇧🇬 Bulgaria</option>
+                <option value="HU">🇭🇺 Ungaria</option>
+              </select>
+            </div>
+            <button className="btn-primary w-full justify-center" onClick={importManual}>
+              {manSaved ? '✓ Adăugat în Cheltuieli' : <span className="flex items-center justify-center gap-2"><Plus size={14}/>Adaugă cheltuială</span>}
+            </button>
           </div>
         </div>
       )}
@@ -676,7 +847,7 @@ export default function ImportPage() {
           </div>
         )}
 
-        {/* ═══ MARKETING (eMAG Ads) ═══ */}
+        {/* ═══ MARKETING ═══ */}
         {tab==='marketing' && (
           <div className="space-y-4">
             <div className="card p-4 space-y-3">
@@ -735,14 +906,12 @@ export default function ImportPage() {
               </div>
             )}
 
-            <div className="border-t border-slate-100 pt-4 space-y-3">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Import Excel — alte cheltuieli Marketing (Facebook, Google etc.)</p>
-              <SimpleImport categorie="Marketing"/>
-              <div className="border-t border-slate-100 pt-3">
-                <p className="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wide">Sau adaugă manual</p>
-                <ManualForm categorie="Marketing"/>
+            {!adsData && !adsResult && (
+              <div className="border-t border-slate-100 pt-4">
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-3">Alte cheltuieli Marketing (Facebook, Google, etc.)</p>
+                <SimpleImport categorie="Marketing"/>
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -750,12 +919,7 @@ export default function ImportPage() {
         {tab==='transport' && (
           <div className="space-y-4">
             <InfoBox color="blue">Cheltuielile de transport cross-border eMAG (<strong>FTIC</strong>) se importă automat din tab-ul <strong>Comisioane eMAG</strong> și se categorisesc ca Transport.</InfoBox>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Import Excel — facturi curierat, combustibil, alte transport</p>
             <SimpleImport categorie="Transport"/>
-            <div className="border-t border-slate-100 pt-3">
-              <p className="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wide">Sau adaugă manual</p>
-              <ManualForm categorie="Transport"/>
-            </div>
           </div>
         )}
 
@@ -886,6 +1050,13 @@ export default function ImportPage() {
                 </div>
               </div>
             )}
+
+            {!efData && !efResult && (
+              <div className="border-t border-slate-100 pt-4">
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-3">Alte cheltuieli Comisioane (Excel / PDF)</p>
+                <SimpleImport categorie="Comisioane eMAG"/>
+              </div>
+            )}
           </div>
         )}
 
@@ -893,37 +1064,21 @@ export default function ImportPage() {
         {tab==='abonamente' && (
           <div className="space-y-4">
             <InfoBox color="purple">Abonamentele Genius eMAG (<strong>FED</strong>) se importă automat din tab-ul <strong>Comisioane eMAG</strong> și se categorisesc ca Abonamente.</InfoBox>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Import Excel — facturi software, servicii, alte abonamente</p>
             <SimpleImport categorie="Abonamente"/>
-            <div className="border-t border-slate-100 pt-3">
-              <p className="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wide">Sau adaugă manual</p>
-              <ManualForm categorie="Abonamente"/>
-            </div>
           </div>
         )}
 
         {/* ═══ CHIRII ═══ */}
         {tab==='chirii' && (
           <div className="space-y-4">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Import Excel — facturi chirie, utilități, alte costuri spațiu</p>
             <SimpleImport categorie="Chirii"/>
-            <div className="border-t border-slate-100 pt-3">
-              <p className="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wide">Sau adaugă manual</p>
-              <ManualForm categorie="Chirii"/>
-            </div>
           </div>
         )}
 
         {/* ═══ ALTELE ═══ */}
         {tab==='altele' && (
           <div className="space-y-4">
-            <InfoBox color="slate">Cheltuieli diverse care nu se încadrează în celelalte categorii.</InfoBox>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Import Excel — orice alte cheltuieli</p>
             <SimpleImport categorie="Altele"/>
-            <div className="border-t border-slate-100 pt-3">
-              <p className="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wide">Sau adaugă manual</p>
-              <ManualForm categorie="Altele"/>
-            </div>
           </div>
         )}
 
