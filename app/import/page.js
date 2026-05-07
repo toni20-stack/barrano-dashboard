@@ -176,6 +176,9 @@ function parsePDFText(text) {
 const EMAG_IGNORAT=['FAACP','FACCP','FAPC','FAPOF','FAECCP','FAECP']
 const EMAG_CH=['FC','FCCO','FCS','FCDP','FED','FY','FTIC']
 const EMAG_INC=['FV','FVS','FHIC']
+const EMAG_COMISION=['FC','FCS','FCCO','FCDP']
+const EMAG_TRANSPORT=['FTIC']
+const EMAG_ABONAMENTE=['FED']
 const EMAG_LABELS={
   FC:'Comision vânzări',FCS:'Storno comision',FCCO:'Corecție comision',
   FCDP:'Discount comision',FED:'Comision Genius',FY:'Card cadou emis la retur',
@@ -653,6 +656,158 @@ function LegendaFacturi({open, onToggle}) {
   )
 }
 
+// Componenta reutilizabilă pentru import eMAG Facturi, filtrată pe tipuri
+function EmagFacturiSection({ tipuriCheltuieli, showIncasari = false }) {
+  const [efData, setEfData] = useState(null)
+  const [efTara, setEfTara] = useState('RO')
+  const [efMoneda, setEfMoneda] = useState('RON')
+  const [efCurs, setEfCurs] = useState(1)
+  const [efResult, setEfResult] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const MONEDE = [
+    {cod:'RON', label:'RON — Leu românesc', curs:1},
+    {cod:'EUR', label:'EUR — Euro',          curs:5.05},
+    {cod:'BGN', label:'BGN — Leva bulgară',  curs:2.58},
+    {cod:'HUF', label:'HUF — Forint ungar',  curs:0.0135},
+  ]
+  const MONEDA_DEFAULT_TARA = {RO:'RON', BG:'EUR', HU:'HUF'}
+
+  const handleFile = async (file) => {
+    setLoading(true); setError('')
+    try {
+      const buf = await file.arrayBuffer()
+      const result = parseEmagFacturi(new Uint8Array(buf))
+      const monedaDefault = MONEDA_DEFAULT_TARA[result.tara]||'RON'
+      setEfData(result); setEfTara(result.tara)
+      setEfMoneda(monedaDefault); setEfCurs(MONEDE.find(m=>m.cod===monedaDefault)?.curs||1)
+      setEfResult(null)
+    } catch(e) { setError(e.message) }
+    setLoading(false)
+  }
+
+  const cheltuieliFiltrate = efData ? efData.cheltuieli.filter(c => tipuriCheltuieli.includes(c.tip)) : []
+  const incasariFiltrate = efData ? efData.incasari : []
+
+  const doImport = () => {
+    const result = doImportEF(
+      cheltuieliFiltrate.map(c => ({...c, tara:efTara, suma:parseFloat((Math.abs(c.suma)*efCurs).toFixed(2))})),
+      showIncasari ? incasariFiltrate.map(i => ({...i, tara:efTara, suma:parseFloat((i.suma*efCurs).toFixed(2))})) : []
+    )
+    setEfResult(result)
+  }
+
+  if (efResult) return (
+    <DoneCard title="eMAG Facturi importate!"
+      stats={[['Cheltuieli',efResult.cheltuieli,'text-red-500'],['Încasări eMAG',efResult.incasari,'text-emerald-600']]}
+      links={[['/cheltuieli','→ Cheltuieli'],['/incasari','→ Încasări eMAG']]}
+      onReset={()=>{ setEfResult(null); setEfData(null) }}/>
+  )
+
+  return (
+    <div className="space-y-4">
+      {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-600">{error}</div>}
+
+      {!efData && <DropZone onFile={handleFile} loading={loading} accept=".xlsx,.xls" hint="Export facturi eMAG Seller (.xlsx)"/>}
+
+      {efData && (
+        <div className="space-y-4">
+          <div className={`grid grid-cols-2 ${showIncasari ? 'md:grid-cols-4' : 'md:grid-cols-2'} gap-3`}>
+            {[
+              ['Cheltuieli', cheltuieliFiltrate.length, 'text-red-600'],
+              ['Total cheltuieli', ron(cheltuieliFiltrate.reduce((s,c)=>s+Math.abs(c.suma),0)), 'text-slate-900'],
+              ...(showIncasari ? [
+                ['Încasări eMAG', incasariFiltrate.length, 'text-emerald-600'],
+                ['Total încasări', ron(incasariFiltrate.reduce((s,i)=>s+i.suma,0)), 'text-emerald-600'],
+              ] : []),
+            ].map(([l,v,c]) => (
+              <div key={l} className="card p-3"><p className="text-[10px] font-bold text-slate-400 uppercase">{l}</p><p className={`text-lg font-black mt-1 ${c}`}>{v}</p></div>
+            ))}
+          </div>
+
+          <div className="card overflow-hidden">
+            <div className="px-4 py-2.5 bg-red-50 border-b border-red-100 flex items-center justify-between flex-wrap gap-2">
+              <p className="text-[11px] font-bold text-red-700">Cheltuieli ({cheltuieliFiltrate.length})</p>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-slate-400">Piață:</span>
+                <select value={efTara} onChange={e=>{const t=e.target.value;const m=MONEDA_DEFAULT_TARA[t]||'RON';setEfTara(t);setEfMoneda(m);setEfCurs(MONEDE.find(x=>x.cod===m)?.curs||1)}}
+                  className="text-[11px] font-bold border border-slate-200 rounded-lg px-2 py-1 bg-white">
+                  <option value="RO">🇷🇴 România</option>
+                  <option value="BG">🇧🇬 Bulgaria</option>
+                  <option value="HU">🇭🇺 Ungaria</option>
+                </select>
+                <span className="text-[10px] text-slate-400">{efTara===efData.tara?'detectat automat':'modificat manual'}</span>
+              </div>
+              {efMoneda!=='RON'&&(
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select value={efMoneda} onChange={e=>{setEfMoneda(e.target.value);setEfCurs(MONEDE.find(m=>m.cod===e.target.value)?.curs||1)}}
+                    className="text-[11px] font-bold border border-red-200 rounded-lg px-2 py-1 bg-red-50">
+                    {MONEDE.map(m=><option key={m.cod} value={m.cod}>{m.label}</option>)}
+                  </select>
+                  <input type="number" step="0.0001" min="0.0001" value={efCurs} onChange={e=>setEfCurs(parseFloat(e.target.value)||1)}
+                    className="text-[11px] font-bold border border-slate-200 rounded-lg px-2 py-1 w-24 text-right"/>
+                  <span className="text-[10px] text-slate-500">1 {efMoneda} = <strong>{efCurs} RON</strong></span>
+                </div>
+              )}
+            </div>
+            <div className="overflow-x-auto max-h-56 overflow-y-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                  <tr>{['Cod','Descriere','Data','Sumă cu TVA'].map(h=><th key={h} className="table-header text-left px-3 py-2">{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {cheltuieliFiltrate.map(c=>(
+                    <tr key={c._id} className="table-row">
+                      <td className="table-cell"><span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{c.tip}</span></td>
+                      <td className="table-cell text-xs text-slate-700">{c.label}</td>
+                      <td className="table-cell text-xs text-slate-500 whitespace-nowrap">{c.data}</td>
+                      <td className={`table-cell text-right font-mono text-xs font-bold ${c.isNegativ?'text-emerald-600':'text-slate-900'}`}>{c.isNegativ?'-':''}{ron(Math.abs(c.suma))}</td>
+                    </tr>
+                  ))}
+                  {cheltuieliFiltrate.length === 0 && (
+                    <tr><td colSpan={4} className="px-4 py-6 text-center text-xs text-slate-400">Nicio factură de tipul selectat în fișier.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {showIncasari && incasariFiltrate.length > 0 && (
+            <div className="card overflow-hidden">
+              <div className="px-4 py-2.5 bg-emerald-50 border-b border-emerald-100"><p className="text-[11px] font-bold text-emerald-700">Încasări eMAG ({incasariFiltrate.length})</p></div>
+              <div className="overflow-x-auto max-h-44 overflow-y-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                    <tr>{['Cod','Descriere','Data','Sumă'].map(h=><th key={h} className="table-header text-left px-3 py-2">{h}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {incasariFiltrate.map(i=>(
+                      <tr key={i._id} className="table-row">
+                        <td className="table-cell"><span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">{i.tip}</span></td>
+                        <td className="table-cell text-xs text-slate-700">{i.label}</td>
+                        <td className="table-cell text-xs text-slate-500 whitespace-nowrap">{i.data}</td>
+                        <td className={`table-cell text-right font-mono text-xs font-bold ${i.isNegativ?'text-red-500':'text-emerald-600'}`}>{ron(i.suma)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3 justify-end">
+            <button className="btn-secondary" onClick={()=>setEfData(null)}>← Alt fișier</button>
+            <button className="btn-primary" onClick={doImport} disabled={cheltuieliFiltrate.length===0&&(!showIncasari||incasariFiltrate.length===0)}>
+              <CheckCircle size={14}/> Importă {cheltuieliFiltrate.length + (showIncasari ? incasariFiltrate.length : 0)} înregistrări
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── MAIN ─────────────────────────────────────────────────────
 
 export default function ImportPage() {
@@ -669,21 +824,6 @@ export default function ImportPage() {
   const [sbSubTab, setSbSubTab] = useState('normale')
   const [sbResult, setSbResult] = useState(null)
 
-  // Comisioane eMAG (eMAG Facturi)
-  const [efData, setEfData] = useState(null)
-  const [efTara, setEfTara] = useState('RO')
-  const [efMoneda, setEfMoneda] = useState('RON')
-  const [efCurs, setEfCurs] = useState(1)
-  const [efResult, setEfResult] = useState(null)
-
-  const MONEDE = [
-    {cod:'RON', label:'RON — Leu românesc', curs:1},
-    {cod:'EUR', label:'EUR — Euro',          curs:5.05},
-    {cod:'BGN', label:'BGN — Leva bulgară',  curs:2.58},
-    {cod:'HUF', label:'HUF — Forint ungar',  curs:0.0135},
-  ]
-  const MONEDA_DEFAULT_TARA = {RO:'RON', BG:'EUR', HU:'HUF'}
-
   // Marketing (eMAG Ads)
   const [adsData, setAdsData] = useState(null)
   const [adsResult, setAdsResult] = useState(null)
@@ -695,14 +835,6 @@ export default function ImportPage() {
     const d = parseSmartBill(new Uint8Array(buf))
     setSbData(d); setSbResult(null)
     const n = {}; ;[...d.normale,...d.storno].forEach(r=>{n[r.cod||r.produs]=r.produs}); setSbNames(n)
-  })
-
-  const handleEF = file => wrap(async() => {
-    const buf = await file.arrayBuffer()
-    const result = parseEmagFacturi(new Uint8Array(buf))
-    const monedaDefault = MONEDA_DEFAULT_TARA[result.tara]||'RON'
-    const cursDefault = MONEDE.find(m=>m.cod===monedaDefault)?.curs||1
-    setEfData(result); setEfTara(result.tara); setEfMoneda(monedaDefault); setEfCurs(cursDefault); setEfResult(null)
   })
 
   const handleAds = file => wrap(async() => {
@@ -918,8 +1050,15 @@ export default function ImportPage() {
         {/* ═══ TRANSPORT ═══ */}
         {tab==='transport' && (
           <div className="space-y-4">
-            <InfoBox color="blue">Cheltuielile de transport cross-border eMAG (<strong>FTIC</strong>) se importă automat din tab-ul <strong>Comisioane eMAG</strong> și se categorisesc ca Transport.</InfoBox>
-            <SimpleImport categorie="Transport"/>
+            <div className="card p-4 space-y-3">
+              <p className="text-xs font-bold text-slate-600">Import transport cross-border eMAG (FTIC):</p>
+              <InfoBox color="blue">Încarcă exportul de facturi eMAG Seller — se vor importa doar facturile de tip <strong>FTIC</strong> (Comision transport cross-border) ca Transport.</InfoBox>
+            </div>
+            <EmagFacturiSection tipuriCheltuieli={EMAG_TRANSPORT} showIncasari={false}/>
+            <div className="border-t border-slate-100 pt-4">
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-3">Alte cheltuieli Transport (curierat, combustibil etc.)</p>
+              <SimpleImport categorie="Transport"/>
+            </div>
           </div>
         )}
 
@@ -932,7 +1071,7 @@ export default function ImportPage() {
                 <li>eMAG Seller → <strong>Financiar → Facturi</strong></li>
                 <li>Selectează perioada → <strong>Export Excel</strong></li>
               </ol>
-              <InfoBox color="red">FC/FCS/FCCO/FCDP → Comisioane eMAG · FTIC → Transport · FED → Abonamente · FV/FVS → Încasări. Suportă RO, BG și HU — țara se detectează automat.</InfoBox>
+              <InfoBox color="red">Se importă doar <strong>FC, FCS, FCCO, FCDP</strong> (comisioane propriu-zise) + Încasările FV/FVS/FHIC. Facturile FTIC → tab Transport · FED → tab Abonamente.</InfoBox>
             </div>
 
             <LegendaFacturi open={legendOpen} onToggle={()=>setLegendOpen(o=>!o)}/>
@@ -955,116 +1094,27 @@ export default function ImportPage() {
               </div>
             </div>
 
-            {!efData && !efResult && <DropZone onFile={handleEF} loading={loading} accept=".xlsx,.xls" hint="Export facturi eMAG Seller (.xlsx)"/>}
+            <EmagFacturiSection tipuriCheltuieli={EMAG_COMISION} showIncasari={true}/>
 
-            {efResult && <DoneCard title="eMAG Facturi importate!"
-              stats={[['Cheltuieli',efResult.cheltuieli,'text-red-500'],['Încasări eMAG',efResult.incasari,'text-emerald-600']]}
-              links={[['/cheltuieli','→ Cheltuieli'],['/incasari','→ Încasări eMAG']]} onReset={()=>setEfResult(null)}/>}
-
-            {efData && !efResult && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[['Cheltuieli',efData.cheltuieli.length,'text-red-600'],['Încasări eMAG',efData.incasari.length,'text-emerald-600'],
-                    ['Total cheltuieli',ron(efData.cheltuieli.reduce((s,c)=>s+Math.abs(c.suma),0)),'text-slate-900'],
-                    ['Total încasări',ron(efData.incasari.reduce((s,i)=>s+i.suma,0)),'text-emerald-600']
-                  ].map(([l,v,c])=>(
-                    <div key={l} className="card p-3"><p className="text-[10px] font-bold text-slate-400 uppercase">{l}</p><p className={`text-lg font-black mt-1 ${c}`}>{v}</p></div>
-                  ))}
-                </div>
-
-                <div className="card overflow-hidden">
-                  <div className="px-4 py-2.5 bg-red-50 border-b border-red-100 flex items-center justify-between flex-wrap gap-2">
-                    <p className="text-[11px] font-bold text-red-700">Cheltuieli ({efData.cheltuieli.length})</p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-400">Piață:</span>
-                      <select value={efTara} onChange={e=>{const t=e.target.value;const m=MONEDA_DEFAULT_TARA[t]||'RON';setEfTara(t);setEfMoneda(m);setEfCurs(MONEDE.find(x=>x.cod===m)?.curs||1)}}
-                        className="text-[11px] font-bold border border-slate-200 rounded-lg px-2 py-1 bg-white">
-                        <option value="RO">🇷🇴 România</option>
-                        <option value="BG">🇧🇬 Bulgaria</option>
-                        <option value="HU">🇭🇺 Ungaria</option>
-                      </select>
-                      <span className="text-[10px] text-slate-400">{efTara===efData.tara?'detectat automat':'modificat manual'}</span>
-                    </div>
-                    {efMoneda!=='RON'&&(
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <select value={efMoneda} onChange={e=>{setEfMoneda(e.target.value);setEfCurs(MONEDE.find(m=>m.cod===e.target.value)?.curs||1)}}
-                          className="text-[11px] font-bold border border-red-200 rounded-lg px-2 py-1 bg-red-50">
-                          {MONEDE.map(m=><option key={m.cod} value={m.cod}>{m.label}</option>)}
-                        </select>
-                        <span className="text-[10px] text-slate-400">Curs:</span>
-                        <input type="number" step="0.0001" min="0.0001" value={efCurs} onChange={e=>setEfCurs(parseFloat(e.target.value)||1)}
-                          className="text-[11px] font-bold border border-slate-200 rounded-lg px-2 py-1 w-24 text-right"/>
-                        <span className="text-[10px] text-slate-500">1 {efMoneda} = <strong>{efCurs} RON</strong></span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="overflow-x-auto max-h-56 overflow-y-auto">
-                    <table className="w-full">
-                      <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
-                        <tr>{['Cod','Descriere','Categorie','Data','Sumă cu TVA'].map(h=><th key={h} className="table-header text-left px-3 py-2">{h}</th>)}</tr>
-                      </thead>
-                      <tbody>
-                        {efData.cheltuieli.map(c=>(
-                          <tr key={c._id} className="table-row">
-                            <td className="table-cell"><span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{c.tip}</span></td>
-                            <td className="table-cell text-xs text-slate-700">{c.label}</td>
-                            <td className="table-cell text-xs text-slate-500">{c.categorie}</td>
-                            <td className="table-cell text-xs text-slate-500 whitespace-nowrap">{c.data}</td>
-                            <td className={`table-cell text-right font-mono text-xs font-bold ${c.isNegativ?'text-emerald-600':'text-slate-900'}`}>{c.isNegativ?'-':''}{ron(Math.abs(c.suma))}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {efData.incasari.length>0&&(
-                  <div className="card overflow-hidden">
-                    <div className="px-4 py-2.5 bg-emerald-50 border-b border-emerald-100"><p className="text-[11px] font-bold text-emerald-700">Încasări eMAG ({efData.incasari.length})</p></div>
-                    <div className="overflow-x-auto max-h-44 overflow-y-auto">
-                      <table className="w-full">
-                        <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
-                          <tr>{['Cod','Descriere','Data','Sumă'].map(h=><th key={h} className="table-header text-left px-3 py-2">{h}</th>)}</tr>
-                        </thead>
-                        <tbody>
-                          {efData.incasari.map(i=>(
-                            <tr key={i._id} className="table-row">
-                              <td className="table-cell"><span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">{i.tip}</span></td>
-                              <td className="table-cell text-xs text-slate-700">{i.label}</td>
-                              <td className="table-cell text-xs text-slate-500 whitespace-nowrap">{i.data}</td>
-                              <td className={`table-cell text-right font-mono text-xs font-bold ${i.isNegativ?'text-red-500':'text-emerald-600'}`}>{ron(i.suma)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-3 justify-end">
-                  <button className="btn-secondary" onClick={()=>setEfData(null)}>← Alt fișier</button>
-                  <button className="btn-primary" onClick={()=>setEfResult(doImportEF(
-                    efData.cheltuieli.map(c=>({...c,tara:efTara,suma:parseFloat((Math.abs(c.suma)*efCurs).toFixed(2))})),
-                    efData.incasari.map(i=>({...i,tara:efTara,suma:parseFloat((i.suma*efCurs).toFixed(2))}))
-                  ))}><CheckCircle size={14}/> Importă tot</button>
-                </div>
-              </div>
-            )}
-
-            {!efData && !efResult && (
-              <div className="border-t border-slate-100 pt-4">
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-3">Alte cheltuieli Comisioane (Excel / PDF)</p>
-                <SimpleImport categorie="Comisioane eMAG"/>
-              </div>
-            )}
+            <div className="border-t border-slate-100 pt-4">
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-3">Alte cheltuieli Comisioane (Excel / PDF)</p>
+              <SimpleImport categorie="Comisioane eMAG"/>
+            </div>
           </div>
         )}
 
         {/* ═══ ABONAMENTE ═══ */}
         {tab==='abonamente' && (
           <div className="space-y-4">
-            <InfoBox color="purple">Abonamentele Genius eMAG (<strong>FED</strong>) se importă automat din tab-ul <strong>Comisioane eMAG</strong> și se categorisesc ca Abonamente.</InfoBox>
-            <SimpleImport categorie="Abonamente"/>
+            <div className="card p-4 space-y-3">
+              <p className="text-xs font-bold text-slate-600">Import abonament Genius eMAG (FED):</p>
+              <InfoBox color="purple">Încarcă exportul de facturi eMAG Seller — se vor importa doar facturile de tip <strong>FED</strong> (Comision Genius) ca Abonamente.</InfoBox>
+            </div>
+            <EmagFacturiSection tipuriCheltuieli={EMAG_ABONAMENTE} showIncasari={false}/>
+            <div className="border-t border-slate-100 pt-4">
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-3">Alte abonamente (software, servicii etc.)</p>
+              <SimpleImport categorie="Abonamente"/>
+            </div>
           </div>
         )}
 
