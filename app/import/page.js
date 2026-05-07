@@ -23,7 +23,7 @@ const JUDETE_RO = ['Alba','Arad','Arges','Bacau','Bihor','Bistrita-Nasaud','Boto
 function detectTara(j) {
   if (!j) return 'RO'
   if (JUDETE_RO.some(jr=>jr.toLowerCase()===j.toString().trim().toLowerCase())) return 'RO'
-  const hu=['Baranya','Borsod','Bács','Békés','Fejér','Győr','Hajdú','Pest','Somogy','Szabolcs','Zala','Budapest']
+  const hu=['Baranya','Borsod','Bács','Békés','Fejér','Győr','Hajdú','Pest','Somogy','Szabolcs','Zala','Budapest','Csongrád','Heves','Jász','Komárom','Nógrád','Tolna','Veszprém','Vas']
   if (hu.some(u=>j.toLowerCase().includes(u.toLowerCase()))) return 'HU'
   return 'BG'
 }
