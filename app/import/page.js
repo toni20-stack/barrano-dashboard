@@ -106,7 +106,7 @@ function parseGenericExcel(buf) {
     h.includes('factura') || h.includes('document') || h.includes('numar') ||
     h.includes('serie') || h.includes('invoice') || (h.includes('nr') && !h.includes('transport')))
 
-  const rows = raw.slice(1).filter(r => r.some(c => c !== '')).map((row, i) => {
+  const rows = raw.slice(1).filter(r => r.some(c => c !== '') && !String(r[0]).toLowerCase().includes('total')).map((row, i) => {
     const rawSuma = String(row[sumaIdx] ?? '').trim()
     // Suportă format românesc: 1.234,56 sau internațional: 1234.56
     const sumaStr = rawSuma.includes(',') && rawSuma.includes('.')
