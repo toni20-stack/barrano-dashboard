@@ -177,12 +177,15 @@ export default function CheltuieliPage() {
                 </ResponsiveContainer>
                 <div className="space-y-2 mt-2">
                   {byCategorie.map(d => (
-                    <div key={d.name} className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: CAT_COLORS[d.name] }} />
-                        <span className="text-slate-600">{d.name}</span>
+                    <div key={d.name} className="flex items-center justify-between text-xs gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CAT_COLORS[d.name] }} />
+                        <span className="text-slate-600 truncate">{d.name}</span>
                       </div>
-                      <span className="font-semibold text-slate-800">{formatRon(d.value)}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] font-bold text-slate-400">{total > 0 ? ((d.value/total)*100).toFixed(1) : 0}%</span>
+                        <span className="font-semibold text-slate-800">{formatRon(d.value)}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
