@@ -5,10 +5,10 @@ import AppLayout from '../../components/AppLayout'
 import Topbar from '../../components/Topbar'
 import CheltuialaModal from '../../components/cheltuieli/CheltuialaModal'
 import { ConfirmDialog, EmptyState } from '../../components/ui'
-import { getCheltuieli, addCheltuiala, updateCheltuiala, deleteCheltuiala } from '../../lib/storage'
+import { getCheltuieli, addCheltuiala, updateCheltuiala, deleteCheltuiala, deleteCheltuieliByIds } from '../../lib/storage'
 import { formatRon, formatDate, filterByDateRange, CATEGORII_CHELTUIELI } from '../../lib/calculations'
 import { exportCheltuieli } from '../../lib/export'
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 
 const RADIAN = Math.PI / 180
 const renderSliceLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, name, percent }) => {
@@ -86,6 +86,16 @@ export default function CheltuieliPage() {
         dateFrom={dateFrom} dateTo={dateTo}
         onDateFrom={setDateFrom} onDateTo={setDateTo}
       >
+        {filtered.length > 0 && (
+          <button className="btn-secondary" style={{color:'#dc2626',borderColor:'#fecaca'}}
+            onClick={async () => {
+              if (!window.confirm(`Ștergi ${filtered.length} cheltuieli filtrate? Acțiunea nu poate fi anulată.`)) return
+              await deleteCheltuieliByIds(filtered.map(c => c.id))
+              load()
+            }}>
+            <Trash2 size={15}/> Șterge {filtered.length} filtrate
+          </button>
+        )}
         <button className="btn-secondary" onClick={() => exportCheltuieli(filtered)}>
           <Download size={15} /> Export CSV
         </button>
