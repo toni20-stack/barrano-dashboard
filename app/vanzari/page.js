@@ -163,7 +163,11 @@ export default function VanzariPage() {
           <div className="card p-4">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Retururi</p>
             <p className="text-xl font-bold mt-1 text-red-500">-{formatRon(totStorno.venit)}</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">{storno.length} înregistrări</p>
+            <div className="flex gap-2 mt-0.5 flex-wrap">
+              <p className="text-[10px] text-slate-400">{storno.length} înregistrări</p>
+              {totNorm.venit > 0 && <p className="text-[10px] font-bold text-red-400">{((totStorno.venit/totNorm.venit)*100).toFixed(1)}% din valoare</p>}
+              {norm.length > 0 && <p className="text-[10px] font-bold text-red-300">{((storno.length/norm.length)*100).toFixed(1)}% din buc.</p>}
+            </div>
           </div>
           <div className="card p-4">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Vânzări nete</p>
