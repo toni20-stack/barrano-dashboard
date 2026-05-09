@@ -386,6 +386,8 @@ function SimpleImport({ categorie }) {
 
   const handleFile = async (file) => {
     setLoading(true); setError('')
+    const autoName = file.name.replace(/\.[^.]+$/, '').replace(/[_\-]+/g, ' ').trim()
+    if (!aboName) setAboName(autoName)
     try {
       const buf = await file.arrayBuffer()
       const arr = new Uint8Array(buf)
