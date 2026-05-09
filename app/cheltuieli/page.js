@@ -10,6 +10,20 @@ import { formatRon, formatDate, filterByDateRange, CATEGORII_CHELTUIELI } from '
 import { exportCheltuieli } from '../../lib/export'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 
+const RADIAN = Math.PI / 180
+const renderInnerLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, name, percent }) => {
+  if (percent < 0.05) return null
+  const r = innerRadius + (outerRadius - innerRadius) * 0.55
+  const x = cx + r * Math.cos(-midAngle * RADIAN)
+  const y = cy + r * Math.sin(-midAngle * RADIAN)
+  return (
+    <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fill="white" fontSize={10} fontWeight="700">
+      <tspan x={x} dy="-0.6em">{name}</tspan>
+      <tspan x={x} dy="1.3em">{(percent*100).toFixed(1)}%</tspan>
+    </text>
+  )
+}
+
 const CAT_COLORS = {
   'Marketing': '#f97316',
   'Transport': '#3b82f6',
@@ -167,9 +181,8 @@ export default function CheltuieliPage() {
               <>
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
-                    <Pie data={byCategorie} cx="50%" cy="50%" outerRadius={70} dataKey="value" nameKey="name"
-                      label={({ name, percent }) => `${name} ${(percent*100).toFixed(1)}%`}
-                      labelLine={true}>
+                    <Pie data={byCategorie} cx="50%" cy="50%" outerRadius={90} dataKey="value" nameKey="name"
+                      label={renderInnerLabel} labelLine={false}>
                       {byCategorie.map((entry, i) => (
                         <Cell key={i} fill={CAT_COLORS[entry.name] || '#64748b'} />
                       ))}
