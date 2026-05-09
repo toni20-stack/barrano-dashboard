@@ -9,6 +9,8 @@ import { v4 as uuidv4 } from 'uuid'
 
 const ron = v => new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:2}).format(v||0)
 
+const LUNI_RO = {ianuarie:'01',februarie:'02',martie:'03',aprilie:'04',mai:'05',iunie:'06',iulie:'07',august:'08',septembrie:'09',octombrie:'10',noiembrie:'11',decembrie:'12'}
+
 function fmtData(s) {
   if (!s) return ''
   s = String(s).trim()
@@ -18,6 +20,9 @@ function fmtData(s) {
     const d = new Date(Math.round((num - 25569) * 86400 * 1000))
     return d.toISOString().slice(0,10)
   }
+  // Nume lună română: "Aprilie 2024" → "2024-04-01"
+  const lunaRo = s.toLowerCase().match(/^(ianuarie|februarie|martie|aprilie|mai|iunie|iulie|august|septembrie|octombrie|noiembrie|decembrie)\s+(\d{4})$/)
+  if (lunaRo) return `${lunaRo[2]}-${LUNI_RO[lunaRo[1]]}-01`
   if (s.includes('/') && s.length <= 10) { const p=s.split('/'); return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}` }
   if (s.includes('.') && s.split('.')[0].length <= 2 && s.split('.').length === 3) { const p=s.split('.'); return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}` }
   if (s.includes('-') && s.split('-')[0].length===2) { const p=s.split('-'); return `${p[2]}-${p[1]}-${p[0]}` }
