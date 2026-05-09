@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { TrendingUp, DollarSign, ShoppingCart, Percent, RefreshCw, X, ChevronDown } from 'lucide-react'
+import { TrendingUp, Banknote, ShoppingCart, Percent, RefreshCw, X, ChevronDown } from 'lucide-react'
 import AppLayout from '../../components/AppLayout'
 import Topbar from '../../components/Topbar'
 import { KPICard } from '../../components/ui'
@@ -166,7 +166,7 @@ export default function DashboardPage() {
       <div style={{padding:'24px 28px', display:'flex', flexDirection:'column', gap:20}}>
         {/* KPIs */}
         <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14}}>
-          <KPICard label="Venit brut" value={formatRon(totalVenit)} icon={DollarSign} color="beige" sub={`${filteredV.length} tranzacții`}/>
+          <KPICard label="Venit brut" value={formatRon(totalVenit)} icon={Banknote} color="beige" sub={`${filteredV.length} tranzacții`}/>
           <KPICard label="Marjă brută" value={formatRon(totalProfit)} icon={TrendingUp} color="green"/>
           <KPICard label="Cheltuieli" value={formatRon(totalChelt)} icon={ShoppingCart} color="beige" sub={`${filteredC.length} înregistrări`}/>
           <KPICard label="Profit net final" value={formatRon(profitNet)} icon={Percent} color={profitNet>=0?'green':'red'} sub={`Marjă ${marjaGlobala.toFixed(1)}%`}/>
