@@ -456,12 +456,12 @@ function SimpleImport({ categorie }) {
     <div className="space-y-4">
       {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-600 flex items-start gap-2"><AlertCircle size={13} className="shrink-0 mt-0.5"/>{error}</div>}
 
-      {/* ── Denumire abonament (doar la Abonamente) ── */}
-      {categorie === 'Abonamente' && mode !== 'done' && (
+      {/* ── Denumire cheltuială ── */}
+      {mode !== 'done' && (
         <div className="card p-4 flex items-center gap-3">
-          <label className="text-[11px] font-bold text-slate-500 uppercase shrink-0">Denumire abonament</label>
+          <label className="text-[11px] font-bold text-slate-500 uppercase shrink-0">Denumire</label>
           <input type="text" className="input flex-1 max-w-xs" value={aboName} onChange={e=>setAboName(e.target.value)}
-            placeholder="ex: BT, SmartBill, Fanca..."/>
+            placeholder="ex: BT, SmartBill, Sameday..."/>
         </div>
       )}
 

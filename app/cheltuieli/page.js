@@ -79,8 +79,8 @@ export default function CheltuieliPage() {
     value: filtered.filter(c => c.categorie === cat).reduce((s, c) => s + Number(c.suma), 0)
   })).filter(d => d.value > 0)
 
-  const byAbo = Object.entries(
-    filtered.filter(c => c.categorie === 'Abonamente').reduce((acc, c) => {
+  const byDescriere = Object.entries(
+    filtered.reduce((acc, c) => {
       const key = c.descriere || 'Fără denumire'
       acc[key] = (acc[key] || 0) + Number(c.suma)
       return acc
@@ -88,7 +88,7 @@ export default function CheltuieliPage() {
   ).map(([name, value], i) => ({ name, value, color: ABO_PALETTE[i % ABO_PALETTE.length] }))
    .filter(d => d.value > 0)
 
-  const pieData = filterCat === 'Abonamente' ? byAbo : byCategorie
+  const pieData = filterCat ? byDescriere : byCategorie
 
   return (
     <AppLayout>
@@ -215,7 +215,7 @@ export default function CheltuieliPage() {
             ) : (
               <>
                 <p className="text-[10px] font-bold text-slate-400 uppercase mb-3">
-                  {filterCat === 'Abonamente' ? 'Abonamente după denumire' : 'Distribuție pe categorii'}
+                  {filterCat ? `${filterCat} după denumire` : 'Distribuție pe categorii'}
                 </p>
                 <ResponsiveContainer width="100%" height={240}>
                   <PieChart>
