@@ -167,8 +167,8 @@ export default function DashboardPage() {
         {/* KPIs */}
         <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14}}>
           <KPICard label="Venit brut" value={formatRon(totalVenit)} icon={Banknote} color="beige" sub={`${filteredV.length} tranzacții`}/>
-          <KPICard label="Marjă brută" value={formatRon(totalProfit)} icon={TrendingUp} color="green"/>
-          <KPICard label="Cheltuieli" value={formatRon(totalChelt)} icon={ShoppingCart} color="beige" sub={`${filteredC.length} înregistrări`}/>
+          <KPICard label="Marjă brută" value={formatRon(totalProfit)} icon={TrendingUp} color="green" sub={totalVenit > 0 ? `${((totalProfit/totalVenit)*100).toFixed(1)}% din venit` : '—'}/>
+          <KPICard label="Cheltuieli" value={formatRon(totalChelt)} icon={ShoppingCart} color="beige" sub={`${filteredC.length} înreg. · ${totalVenit > 0 ? ((totalChelt/totalVenit)*100).toFixed(1) : 0}% din venit`}/>
           <KPICard label="Profit net final" value={formatRon(profitNet)} icon={Percent} color={profitNet>=0?'green':'red'} sub={`Marjă ${marjaGlobala.toFixed(1)}%`}/>
         </div>
 
