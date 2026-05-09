@@ -382,6 +382,7 @@ function SimpleImport({ categorie }) {
   const [manSaved, setManSaved] = useState(false)
 
   const [importCount, setImportCount] = useState(0)
+  const [aboName, setAboName] = useState('')
 
   const handleFile = async (file) => {
     setLoading(true); setError('')
@@ -413,7 +414,7 @@ function SimpleImport({ categorie }) {
     const batchId = uuidv4()
     const noi = excelData.rows.map(r => ({
       id: uuidv4(), batchId, categorie, suma: r.suma, data: r.data,
-      descriere: r.descriere || '', tara: excelTara, sursa: 'excel_import'
+      descriere: aboName || r.descriere || '', tara: excelTara, sursa: 'excel_import'
     }))
     await addCheltuieliBulk(noi)
     await addImport({id:batchId, fisier:excelData.fileName||'Excel', tip:'excel', categorie, tara:excelTara, data:new Date().toISOString().slice(0,10), countCheltuieli:noi.length})
@@ -426,7 +427,7 @@ function SimpleImport({ categorie }) {
     if (!s || s <= 0) { setError('Suma trebuie să fie mai mare ca 0.'); return }
     if (!pdfData) { setError('Completează data facturii.'); return }
     const batchId = uuidv4()
-    await addCheltuiala({ id: uuidv4(), batchId, categorie, suma: s, data: pdfData, descriere: pdfDescriere, tara: pdfTara, sursa: 'pdf_import' })
+    await addCheltuiala({ id: uuidv4(), batchId, categorie, suma: s, data: pdfData, descriere: aboName || pdfDescriere, tara: pdfTara, sursa: 'pdf_import' })
     await addImport({id:batchId, fisier:pdfParsed?.fileName||'PDF', tip:'pdf', categorie, tara:pdfTara, data:new Date().toISOString().slice(0,10), countCheltuieli:1})
     setImportCount(1)
     setMode('done')
@@ -454,6 +455,15 @@ function SimpleImport({ categorie }) {
   return (
     <div className="space-y-4">
       {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-600 flex items-start gap-2"><AlertCircle size={13} className="shrink-0 mt-0.5"/>{error}</div>}
+
+      {/* ── Denumire abonament (doar la Abonamente) ── */}
+      {categorie === 'Abonamente' && mode !== 'done' && (
+        <div className="card p-4 flex items-center gap-3">
+          <label className="text-[11px] font-bold text-slate-500 uppercase shrink-0">Denumire abonament</label>
+          <input type="text" className="input flex-1 max-w-xs" value={aboName} onChange={e=>setAboName(e.target.value)}
+            placeholder="ex: BT, SmartBill, Fanca..."/>
+        </div>
+      )}
 
       {/* ── IDLE: drop zone ── */}
       {mode === 'idle' && (

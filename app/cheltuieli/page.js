@@ -73,10 +73,22 @@ export default function CheltuieliPage() {
   const total = filtered.reduce((s, c) => s + Number(c.suma), 0)
 
   // Pie data
+  const ABO_PALETTE = ['#8b5cf6','#6366f1','#3b82f6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899']
   const byCategorie = CATEGORII_CHELTUIELI.map(cat => ({
-    name: cat,
+    name: cat, color: CAT_COLORS[cat] || '#64748b',
     value: filtered.filter(c => c.categorie === cat).reduce((s, c) => s + Number(c.suma), 0)
   })).filter(d => d.value > 0)
+
+  const byAbo = Object.entries(
+    filtered.filter(c => c.categorie === 'Abonamente').reduce((acc, c) => {
+      const key = c.descriere || 'Fără denumire'
+      acc[key] = (acc[key] || 0) + Number(c.suma)
+      return acc
+    }, {})
+  ).map(([name, value], i) => ({ name, value, color: ABO_PALETTE[i % ABO_PALETTE.length] }))
+   .filter(d => d.value > 0)
+
+  const pieData = filterCat === 'Abonamente' ? byAbo : byCategorie
 
   return (
     <AppLayout>
@@ -198,26 +210,29 @@ export default function CheltuieliPage() {
           {/* Pie chart */}
           <div className="card p-5">
             <p className="text-sm font-bold text-slate-800 mb-4">Distribuție cheltuieli</p>
-            {byCategorie.length === 0 ? (
+            {pieData.length === 0 ? (
               <div className="flex items-center justify-center h-48 text-slate-400 text-sm">Fără date</div>
             ) : (
               <>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mb-3">
+                  {filterCat === 'Abonamente' ? 'Abonamente după denumire' : 'Distribuție pe categorii'}
+                </p>
                 <ResponsiveContainer width="100%" height={240}>
                   <PieChart>
-                    <Pie data={byCategorie} cx="50%" cy="50%" outerRadius={80} dataKey="value" nameKey="name"
+                    <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value" nameKey="name"
                       label={renderSliceLabel} labelLine={false}>
-                      {byCategorie.map((entry, i) => (
-                        <Cell key={i} fill={CAT_COLORS[entry.name] || '#64748b'} />
+                      {pieData.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip formatter={(val) => formatRon(val)} contentStyle={{fontSize:11,borderRadius:8}}/>
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="space-y-2 mt-2">
-                  {byCategorie.map(d => (
+                  {pieData.map(d => (
                     <div key={d.name} className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CAT_COLORS[d.name] }} />
+                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
                         <span className="text-slate-600">{d.name}</span>
                       </div>
                       <span className="font-semibold text-slate-800">{formatRon(d.value)}</span>
