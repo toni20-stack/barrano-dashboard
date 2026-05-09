@@ -11,16 +11,29 @@ import { exportCheltuieli } from '../../lib/export'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 
 const RADIAN = Math.PI / 180
-const renderInnerLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, name, percent }) => {
-  if (percent < 0.05) return null
-  const r = innerRadius + (outerRadius - innerRadius) * 0.55
-  const x = cx + r * Math.cos(-midAngle * RADIAN)
-  const y = cy + r * Math.sin(-midAngle * RADIAN)
+const renderSliceLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, name, percent }) => {
+  if (percent < 0.04) return null
+  // Numele — în interiorul feliei, rotit pe direcția radială
+  const ri = innerRadius + (outerRadius - innerRadius) * 0.52
+  const ix = cx + ri * Math.cos(-midAngle * RADIAN)
+  const iy = cy + ri * Math.sin(-midAngle * RADIAN)
+  const rot = midAngle > 90 && midAngle < 270 ? -midAngle + 180 : -midAngle
+  // Procentul — pe exterior, în dreptul feliei
+  const ro = outerRadius + 18
+  const ox = cx + ro * Math.cos(-midAngle * RADIAN)
+  const oy = cy + ro * Math.sin(-midAngle * RADIAN)
   return (
-    <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fill="white" fontSize={10} fontWeight="700">
-      <tspan x={x} dy="-0.6em">{name}</tspan>
-      <tspan x={x} dy="1.3em">{(percent*100).toFixed(1)}%</tspan>
-    </text>
+    <g>
+      <text x={ix} y={iy} textAnchor="middle" dominantBaseline="central"
+        fill="white" fontSize={9} fontWeight="700"
+        transform={`rotate(${rot},${ix},${iy})`}>
+        {name}
+      </text>
+      <text x={ox} y={oy} textAnchor={ox > cx ? 'start' : 'end'} dominantBaseline="central"
+        fill="#475569" fontSize={10} fontWeight="700">
+        {(percent*100).toFixed(1)}%
+      </text>
+    </g>
   )
 }
 
@@ -179,10 +192,10 @@ export default function CheltuieliPage() {
               <div className="flex items-center justify-center h-48 text-slate-400 text-sm">Fără date</div>
             ) : (
               <>
-                <ResponsiveContainer width="100%" height={220}>
+                <ResponsiveContainer width="100%" height={240}>
                   <PieChart>
-                    <Pie data={byCategorie} cx="50%" cy="50%" outerRadius={90} dataKey="value" nameKey="name"
-                      label={renderInnerLabel} labelLine={false}>
+                    <Pie data={byCategorie} cx="50%" cy="50%" outerRadius={80} dataKey="value" nameKey="name"
+                      label={renderSliceLabel} labelLine={false}>
                       {byCategorie.map((entry, i) => (
                         <Cell key={i} fill={CAT_COLORS[entry.name] || '#64748b'} />
                       ))}
