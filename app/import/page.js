@@ -91,11 +91,19 @@ function parseGenericExcel(buf) {
   const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''})
   if (raw.length < 2) throw new Error('Fișierul este gol sau nu are date.')
 
-  const headers = raw[0].map(h => String(h).trim())
+  // Detectează automat rândul cu headerele (primele 6 rânduri)
+  const COL_KWS = ['suma','total','amount','valoare','pret','net','data','date','luna','descriere','denumire','produs','furnizor']
+  let hRow = 0
+  for (let i = 0; i < Math.min(6, raw.length); i++) {
+    const rowLow = raw[i].map(c => String(c).trim().toLowerCase())
+    if (rowLow.some(h => COL_KWS.some(kw => h.includes(kw)))) { hRow = i; break }
+  }
+
+  const headers = raw[hRow].map(h => String(h).trim())
   const headersLow = headers.map(h => h.toLowerCase())
 
   const dateIdx = headersLow.findIndex(h =>
-    h.includes('data') || h.includes('date') || h.includes('zi') || h.includes('emitere') || h.includes('scadent'))
+    h.includes('data') || h.includes('date') || h.includes('luna') || h.includes('zi') || h.includes('emitere') || h.includes('scadent'))
   const findCol = (...kws) => { for (const kw of kws) { const i = headersLow.findIndex(h => h.includes(kw)); if (i >= 0) return i } return -1 }
   const sumaIdx = findCol('total', 'suma', 'amount', 'valoare', 'pret', 'net')
   const descriereIdx = headersLow.findIndex(h =>
@@ -106,7 +114,7 @@ function parseGenericExcel(buf) {
     h.includes('factura') || h.includes('document') || h.includes('numar') ||
     h.includes('serie') || h.includes('invoice') || (h.includes('nr') && !h.includes('transport')))
 
-  const rows = raw.slice(1).filter(r => r.some(c => c !== '') && !String(r[0]).toLowerCase().includes('total')).map((row, i) => {
+  const rows = raw.slice(hRow + 1).filter(r => r.some(c => c !== '') && !String(r[0]).toLowerCase().includes('total')).map((row, i) => {
     const rawSuma = String(row[sumaIdx] ?? '').trim()
     // Suportă format românesc: 1.234,56 sau internațional: 1234.56
     const sumaStr = rawSuma.includes(',') && rawSuma.includes('.')
