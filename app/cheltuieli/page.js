@@ -165,27 +165,26 @@ export default function CheltuieliPage() {
               <div className="flex items-center justify-center h-48 text-slate-400 text-sm">Fără date</div>
             ) : (
               <>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
-                    <Pie data={byCategorie} cx="50%" cy="50%" outerRadius={80} dataKey="value" nameKey="name">
+                    <Pie data={byCategorie} cx="50%" cy="50%" outerRadius={70} dataKey="value" nameKey="name"
+                      label={({ name, percent }) => `${name} ${(percent*100).toFixed(1)}%`}
+                      labelLine={true}>
                       {byCategorie.map((entry, i) => (
                         <Cell key={i} fill={CAT_COLORS[entry.name] || '#64748b'} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(val) => formatRon(val)} />
+                    <Tooltip formatter={(val) => formatRon(val)} contentStyle={{fontSize:11,borderRadius:8}}/>
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="space-y-2 mt-2">
                   {byCategorie.map(d => (
-                    <div key={d.name} className="flex items-center justify-between text-xs gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
+                    <div key={d.name} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
                         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CAT_COLORS[d.name] }} />
-                        <span className="text-slate-600 truncate">{d.name}</span>
+                        <span className="text-slate-600">{d.name}</span>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[10px] font-bold text-slate-400">{total > 0 ? ((d.value/total)*100).toFixed(1) : 0}%</span>
-                        <span className="font-semibold text-slate-800">{formatRon(d.value)}</span>
-                      </div>
+                      <span className="font-semibold text-slate-800">{formatRon(d.value)}</span>
                     </div>
                   ))}
                 </div>
