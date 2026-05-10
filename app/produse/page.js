@@ -23,9 +23,16 @@ export default function ProducePage() {
 
   useEffect(() => { load() }, [load])
 
-  const handleSave = async (p) => {
+  const handleSave = async (p, bulkIds = [], costData = {}) => {
     if (editProdus) await updateProdus(p)
     else await addProdus(p)
+    if (bulkIds.length > 0) {
+      await Promise.all(bulkIds.map(id => {
+        const existing = produse.find(pr => pr.id === id)
+        if (!existing) return null
+        return updateProdus({ ...existing, ...costData })
+      }))
+    }
     load()
   }
 
@@ -142,12 +149,18 @@ export default function ProducePage() {
                     </div>
                     <div className="space-y-1.5 text-xs">
                       {[
-                        ['Achiziție furnizor', p.costAchizitie],
-                        ['Transport / freight', p.transport],
-                        ['Taxe vamale', p.taxeVamale],
+                        p.costAchizitieNIR !== undefined && p.costAchizitieNIR !== ''
+                          ? ['Cost achiziție NIR', p.costAchizitieNIR]
+                          : null,
+                        p.costAchizitieNIR === undefined || p.costAchizitieNIR === ''
+                          ? ['Achiziție furnizor', p.costAchizitie] : null,
+                        p.costAchizitieNIR === undefined || p.costAchizitieNIR === ''
+                          ? ['Transport / freight', p.transport] : null,
+                        p.costAchizitieNIR === undefined || p.costAchizitieNIR === ''
+                          ? ['Taxe vamale', p.taxeVamale] : null,
                         ['Ambalaj', p.ambalaj],
                         ...(p.componente||[]).map(c => [c.nume||'—', c.suma]),
-                      ].filter(([,v]) => Number(v)>0).map(([lbl, val], i) => (
+                      ].filter(row => row && Number(row[1])>0).map(([lbl, val], i) => (
                         <div key={i} className="flex justify-between text-slate-600">
                           <span>{lbl}</span>
                           <span className="font-mono">{formatRon(Number(val))}</span>
@@ -179,6 +192,7 @@ export default function ProducePage() {
         onClose={() => setModalOpen(false)}
         onSave={handleSave}
         produs={editProdus}
+        produse={produse}
       />
       <ConfirmDialog
         open={!!confirmId}
