@@ -86,6 +86,8 @@ export default function CheltuieliPage() {
     const p = produse.find(pr => pr.id === v.produsId)
     return s + (p ? calcCostTotal(p) * (Number(v.cantitate) || 0) : 0)
   }, 0)
+  const venitVanzari = vanzariFiltrate.reduce((s, v) => s + (Number(v.cantitate) || 0) * (Number(v.pretUnitar) || 0), 0)
+  const pctMarfa = venitVanzari > 0 ? (costMarfa / venitVanzari) * 100 : 0
 
   // Pie data
   const ABO_PALETTE = ['#8b5cf6','#6366f1','#3b82f6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899']
@@ -103,7 +105,10 @@ export default function CheltuieliPage() {
   ).map(([name, value], i) => ({ name, value, color: ABO_PALETTE[i % ABO_PALETTE.length] }))
    .filter(d => d.value > 0)
 
-  const pieData = filterCat ? byDescriere : byCategorie
+  const pieData = filterCat ? byDescriere : [
+    ...(costMarfa > 0 ? [{ name: 'Marfă', value: costMarfa, color: '#06b6d4' }] : []),
+    ...byCategorie,
+  ]
 
   return (
     <AppLayout>
@@ -151,7 +156,7 @@ export default function CheltuieliPage() {
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Marfă</p>
             </div>
             <p className="text-base font-bold text-slate-900">{formatRon(costMarfa)}</p>
-            <p className="text-[10px] text-slate-400">{vanzariFiltrate.length} vânz. filtrate</p>
+            <p className="text-[10px] text-slate-400">{venitVanzari > 0 ? `${pctMarfa.toFixed(0)}% din vânzări` : `${vanzariFiltrate.length} vânz.`}</p>
           </div>
           {CATEGORII_CHELTUIELI.map(cat => {
             const suma = filtered.filter(c => c.categorie === cat).reduce((s, c) => s + Number(c.suma), 0)
