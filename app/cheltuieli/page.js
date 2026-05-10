@@ -167,7 +167,7 @@ export default function CheltuieliPage() {
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{cat}</p>
                 </div>
                 <p className="text-base font-bold text-slate-900">{formatRon(suma)}</p>
-                {total > 0 && <p className="text-[10px] text-slate-400">{((suma/total)*100).toFixed(0)}% din total</p>}
+                {venitVanzari > 0 && <p className="text-[10px] text-slate-400">{((suma/venitVanzari)*100).toFixed(0)}% din vânzări</p>}
               </div>
             )
           })}
