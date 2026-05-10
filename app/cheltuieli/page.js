@@ -81,7 +81,7 @@ export default function CheltuieliPage() {
 
   const byDescriere = Object.entries(
     filtered.reduce((acc, c) => {
-      const key = c.descriere || 'Fără denumire'
+      const key = (c.descriere || 'Fără denumire').trim()
       acc[key] = (acc[key] || 0) + Number(c.suma)
       return acc
     }, {})
