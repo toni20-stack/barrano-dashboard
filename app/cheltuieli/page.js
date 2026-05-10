@@ -5,8 +5,8 @@ import AppLayout from '../../components/AppLayout'
 import Topbar from '../../components/Topbar'
 import CheltuialaModal from '../../components/cheltuieli/CheltuialaModal'
 import { ConfirmDialog, EmptyState } from '../../components/ui'
-import { getCheltuieli, addCheltuiala, updateCheltuiala, deleteCheltuiala, deleteCheltuieliByIds } from '../../lib/storage'
-import { formatRon, formatDate, filterByDateRange, CATEGORII_CHELTUIELI } from '../../lib/calculations'
+import { getCheltuieli, addCheltuiala, updateCheltuiala, deleteCheltuiala, deleteCheltuieliByIds, getVanzari, getProduse } from '../../lib/storage'
+import { formatRon, formatDate, filterByDateRange, CATEGORII_CHELTUIELI, calcCostTotal } from '../../lib/calculations'
 import { exportCheltuieli } from '../../lib/export'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 
@@ -48,6 +48,8 @@ const CAT_COLORS = {
 
 export default function CheltuieliPage() {
   const [cheltuieli, setCheltuieli] = useState([])
+  const [vanzari, setVanzari] = useState([])
+  const [produse, setProduse] = useState([])
   const [modalOpen, setModalOpen] = useState(false)
   const [editC, setEditC] = useState(null)
   const [confirmId, setConfirmId] = useState(null)
@@ -56,7 +58,10 @@ export default function CheltuieliPage() {
   const [filterCat, setFilterCat] = useState('')
   const [filterTara, setFilterTara] = useState('')
 
-  const load = useCallback(async () => { setCheltuieli(await getCheltuieli()) }, [])
+  const load = useCallback(async () => {
+    const [c, v, p] = await Promise.all([getCheltuieli(), getVanzari(), getProduse()])
+    setCheltuieli(c); setVanzari(v); setProduse(p)
+  }, [])
   useEffect(() => { load() }, [load])
 
   const handleSave = async (c) => {
@@ -71,6 +76,16 @@ export default function CheltuieliPage() {
     .filter(c => !filterTara || (filterTara === 'RO' ? (!c.tara || c.tara === 'RO') : c.tara === filterTara))
 
   const total = filtered.reduce((s, c) => s + Number(c.suma), 0)
+
+  // COGS — cost marfă vândută în perioada filtrată
+  const vanzariFiltrate = filterByDateRange(
+    vanzari.filter(v => !v.isStorno),
+    'data', dateFrom, dateTo
+  ).filter(v => !filterTara || (filterTara === 'RO' ? (!v.tara || v.tara === 'RO') : v.tara === filterTara))
+  const costMarfa = vanzariFiltrate.reduce((s, v) => {
+    const p = produse.find(pr => pr.id === v.produsId)
+    return s + (p ? calcCostTotal(p) * (Number(v.cantitate) || 0) : 0)
+  }, 0)
 
   // Pie data
   const ABO_PALETTE = ['#8b5cf6','#6366f1','#3b82f6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899']
@@ -128,7 +143,16 @@ export default function CheltuieliPage() {
         </div>
 
         {/* Sumar per categorie */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
+          {/* Card Marfă — COGS calculat din vânzări × cost produs */}
+          <div className="card p-3 border-l-4 border-cyan-500">
+            <div className="flex items-center gap-1.5 mb-1">
+              <div className="w-2 h-2 rounded-full bg-cyan-500" />
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Marfă</p>
+            </div>
+            <p className="text-base font-bold text-slate-900">{formatRon(costMarfa)}</p>
+            <p className="text-[10px] text-slate-400">{vanzariFiltrate.length} vânz. filtrate</p>
+          </div>
           {CATEGORII_CHELTUIELI.map(cat => {
             const suma = filtered.filter(c => c.categorie === cat).reduce((s, c) => s + Number(c.suma), 0)
             return (
