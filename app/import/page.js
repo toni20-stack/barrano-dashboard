@@ -96,26 +96,30 @@ function parseGenericExcel(buf) {
   const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''})
   if (raw.length < 2) throw new Error('Fișierul este gol sau nu are date.')
 
+  const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase()
+
   // Detectează automat rândul cu headerele (primele 6 rânduri)
   const COL_KWS = ['suma','total','amount','valoare','pret','net','data','date','luna','descriere','denumire','produs','furnizor']
   let hRow = 0
-  for (let i = 0; i < Math.min(6, raw.length); i++) {
-    const rowLow = raw[i].map(c => String(c).trim().toLowerCase())
-    if (rowLow.some(h => COL_KWS.some(kw => h.includes(kw)))) { hRow = i; break }
+  for (let i = 0; i < Math.min(8, raw.length); i++) {
+    const nonEmpty = raw[i].filter(c => String(c).trim() !== '')
+    if (nonEmpty.length < 2) continue
+    const rowNorm = raw[i].map(c => norm(String(c).trim()))
+    if (rowNorm.some(h => COL_KWS.some(kw => h.includes(kw)))) { hRow = i; break }
   }
 
   const headers = raw[hRow].map(h => String(h).trim())
-  const headersLow = headers.map(h => h.toLowerCase())
+  const headersNorm = headers.map(h => norm(h))
 
-  const dateIdx = headersLow.findIndex(h =>
+  const dateIdx = headersNorm.findIndex(h =>
     h.includes('data') || h.includes('date') || h.includes('luna') || h.includes('zi') || h.includes('emitere') || h.includes('scadent'))
-  const findCol = (...kws) => { for (const kw of kws) { const i = headersLow.findIndex(h => h.includes(kw)); if (i >= 0) return i } return -1 }
+  const findCol = (...kws) => { for (const kw of kws) { const i = headersNorm.findIndex(h => h.includes(kw)); if (i >= 0) return i } return -1 }
   const sumaIdx = findCol('total', 'suma', 'amount', 'valoare', 'pret', 'net')
-  const descriereIdx = headersLow.findIndex(h =>
+  const descriereIdx = headersNorm.findIndex(h =>
     h.includes('descriere') || h.includes('denumire') || h.includes('produs') ||
     h.includes('serviciu') || h.includes('description') || h.includes('furnizor') ||
     h.includes('nota') || h.includes('detalii') || h.includes('text'))
-  const docIdx = headersLow.findIndex(h =>
+  const docIdx = headersNorm.findIndex(h =>
     h.includes('factura') || h.includes('document') || h.includes('numar') ||
     h.includes('serie') || h.includes('invoice') || (h.includes('nr') && !h.includes('transport')))
 
