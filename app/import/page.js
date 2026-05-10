@@ -198,7 +198,7 @@ function parsePDFText(text) {
 const EMAG_IGNORAT=['FAACP','FACCP','FAPC','FAPOF','FAECCP','FAECP']
 const EMAG_CH=['FC','FCCO','FCS','FCDP','FED','FY','FTIC']
 const EMAG_INC=['FV','FVS','FHIC']
-const EMAG_COMISION=['FC','FCS','FCCO','FCDP']
+const EMAG_COMISION=['FC','FCS','FCCO','FCDP','FED']
 const EMAG_TRANSPORT=['FTIC']
 const EMAG_ABONAMENTE=['FED']
 const EMAG_LABELS={
@@ -236,7 +236,7 @@ function parseEmagFacturi(buf, taraFortat) {
     const doc=String(isEngleza ? (row['Invoice series/number']||row['Invoice series\/number']||'') : (row['Serie/numar factura']||'')).trim()
     const label=EMAG_LABELS[tip]||tip
     const categorie = tip==='FTIC' ? 'Transport' :
-                      tip==='FED'  ? 'Abonamente' :
+                      tip==='FED'  ? 'Comisioane eMAG' :
                       tip==='FY'   ? 'Altele' :
                       'Comisioane eMAG'
     if (EMAG_CH.includes(tip)) {
@@ -649,7 +649,7 @@ function LegendaFacturi({open, onToggle}) {
   const sectiuni = [
     { color:'#dc2626', bg:'#fef2f2', border:'#fecaca', textColor:'#991b1b',
       titlu:'Cheltuieli — tu plătești',
-      items:[{cod:'FC',desc:'Comision pe vânzări → Comisioane eMAG'},{cod:'FED',desc:'Comision Genius → Abonamente'},{cod:'FTIC',desc:'Transport cross-border → Transport'},{cod:'FCCO',desc:'Corecție comision → Comisioane eMAG'},{cod:'FY',desc:'Card cadou retur → Altele'}]},
+      items:[{cod:'FC',desc:'Comision pe vânzări → Comisioane eMAG'},{cod:'FED',desc:'Comision Genius → Comisioane eMAG'},{cod:'FTIC',desc:'Transport cross-border → Transport'},{cod:'FCCO',desc:'Corecție comision → Comisioane eMAG'},{cod:'FY',desc:'Card cadou retur → Altele'}]},
     { color:'#16a34a', bg:'#f0fdf4', border:'#bbf7d0', textColor:'#14532d',
       titlu:'Reduc cheltuielile (valori negative)',
       items:[{cod:'FCS',desc:'Storno comision la retur'},{cod:'FCDP',desc:'Discount comision de la eMAG'}]},
@@ -1119,7 +1119,7 @@ export default function ImportPage() {
                 <li>eMAG Seller → <strong>Financiar → Facturi</strong></li>
                 <li>Selectează perioada → <strong>Export Excel</strong></li>
               </ol>
-              <InfoBox color="red">Se importă doar <strong>FC, FCS, FCCO, FCDP</strong> (comisioane propriu-zise) + Încasările FV/FVS/FHIC. Facturile FTIC → tab Transport · FED → tab Abonamente.</InfoBox>
+              <InfoBox color="red">Se importă <strong>FC, FCS, FCCO, FCDP, FED</strong> (comisioane + Genius) + Încasările FV/FVS/FHIC. Facturile FTIC → tab Transport.</InfoBox>
             </div>
 
             <LegendaFacturi open={legendOpen} onToggle={()=>setLegendOpen(o=>!o)}/>
@@ -1154,15 +1154,7 @@ export default function ImportPage() {
         {/* ═══ ABONAMENTE ═══ */}
         {tab==='abonamente' && (
           <div className="space-y-4">
-            <div className="card p-4 space-y-3">
-              <p className="text-xs font-bold text-slate-600">Import abonament Genius eMAG (FED):</p>
-              <InfoBox color="purple">Încarcă exportul de facturi eMAG Seller — se vor importa doar facturile de tip <strong>FED</strong> (Comision Genius) ca Abonamente.</InfoBox>
-            </div>
-            <EmagFacturiSection tipuriCheltuieli={EMAG_ABONAMENTE} showIncasari={false}/>
-            <div className="border-t border-slate-100 pt-4">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-3">Alte abonamente (software, servicii etc.)</p>
-              <SimpleImport categorie="Abonamente"/>
-            </div>
+            <SimpleImport categorie="Abonamente"/>
           </div>
         )}
 
