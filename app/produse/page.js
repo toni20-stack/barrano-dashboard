@@ -88,6 +88,7 @@ export default function ProducePage() {
                     <th className="table-header text-right px-4 py-3">Preț vânzare</th>
                     <th className="table-header text-right px-4 py-3">Profit / buc</th>
                     <th className="table-header text-right px-4 py-3">Marjă</th>
+                    <th className="table-header text-right px-4 py-3">Stoc</th>
                     <th className="table-header text-center px-4 py-3">Acțiuni</th>
                   </tr>
                 </thead>
@@ -104,6 +105,11 @@ export default function ProducePage() {
                         <td className="table-cell text-right font-mono text-sm font-semibold">{formatRon(p.pretVanzare)}</td>
                         <td className="table-cell text-right"><ProfitCell value={profit} /></td>
                         <td className="table-cell text-right"><MarjaCell value={marja} /></td>
+                        <td className="table-cell text-right">
+                          {p.stoc !== undefined && p.stoc !== null
+                            ? <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${p.stoc === 0 ? 'bg-red-100 text-red-600' : p.stoc <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{p.stoc} buc</span>
+                            : <span className="text-xs text-slate-300">—</span>}
+                        </td>
                         <td className="table-cell">
                           <div className="flex items-center justify-center gap-1">
                             <button className="btn-ghost" title="Editează" onClick={() => { setEditProdus(p); setModalOpen(true) }}>

@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx'
 import AppLayout from '../../components/AppLayout'
 import Topbar from '../../components/Topbar'
 import { Upload, CheckCircle, AlertCircle, Pencil, Check, X, FileText, ShoppingBag, Megaphone, Truck, CreditCard, Building2, Package, Plus, FileSpreadsheet, FileType, Trash2, Clock } from 'lucide-react'
-import { addVanzariBulk, addProduseBulk, addCheltuieliBulk, addIncasariBulk, addCheltuiala, deleteVanzariBySursa, deleteCheltuieliEmagByTara, getProduse, getImporturi, addImport, deleteImport, deleteByBatchId } from '../../lib/storage'
+import { addVanzariBulk, addProduseBulk, addCheltuieliBulk, addIncasariBulk, addCheltuiala, deleteVanzariBySursa, deleteCheltuieliEmagByTara, getProduse, getImporturi, addImport, deleteImport, deleteByBatchId, updateProdus } from '../../lib/storage'
 import { v4 as uuidv4 } from 'uuid'
 
 const ron = v => new Intl.NumberFormat('ro-RO',{style:'currency',currency:'RON',minimumFractionDigits:2}).format(v||0)
@@ -261,6 +261,159 @@ function parseEmagAds(buf) {
     else if (tip==='Free') free.push(obj)
   })
   return {prepaid,free}
+}
+
+function parseStocSmartBill(buf, produse) {
+  const wb = XLSX.read(buf, {type:'array'})
+  const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''})
+  const norm = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim()
+  let hRow = 0
+  for (let i = 0; i < Math.min(10, raw.length); i++) {
+    const r = raw[i].map(c => norm(c))
+    if (r.some(h => ['denumire','produs','cantitate','stoc','qty'].some(kw => h.includes(kw)))) { hRow = i; break }
+  }
+  const headers = raw[hRow].map(h => String(h).trim())
+  const hn = headers.map(h => norm(h))
+  const findCol = (...kws) => { for (const kw of kws) { const i = hn.findIndex(h => h.includes(kw)); if (i >= 0) return i } return -1 }
+  const numeIdx = findCol('denumire','produs','articol','nume','description','item')
+  const cantIdx = findCol('cantitate','stoc','qty','quantity','disponibil','sold')
+  if (numeIdx < 0 || cantIdx < 0) throw new Error('Nu s-au găsit coloanele Denumire și Cantitate în fișier.')
+  const rows = raw.slice(hRow + 1)
+    .filter(r => r.some(c => c !== '') && !norm(String(r[0])).includes('total'))
+    .map((r, i) => {
+      const numeSB = String(r[numeIdx] || '').trim()
+      const cantitate = Math.max(0, parseFloat(String(r[cantIdx] || '').replace(',', '.')) || 0)
+      if (!numeSB) return null
+      const normSB = norm(numeSB)
+      let matched = produse.find(p => norm(p.numeBarrano) === normSB)
+      if (!matched) matched = produse.find(p => normSB.includes(norm(p.numeBarrano)) || norm(p.numeBarrano).includes(normSB))
+      return { _id: `stoc_${i}`, numeSB, cantitate, produsId: matched?.id || null }
+    }).filter(Boolean)
+  if (rows.length === 0) throw new Error('Nu s-au găsit produse în fișier.')
+  return { rows, numeHeader: headers[numeIdx], cantHeader: headers[cantIdx] }
+}
+
+function StocImportSection() {
+  const [mode, setMode] = useState('idle')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [produse, setProduse] = useState([])
+  const [stocData, setStocData] = useState(null)
+  const [mappings, setMappings] = useState({})
+  const [result, setResult] = useState(null)
+
+  const handleFile = async (file) => {
+    setLoading(true); setError('')
+    try {
+      const pr = await getProduse()
+      setProduse(pr)
+      const buf = await file.arrayBuffer()
+      const data = parseStocSmartBill(new Uint8Array(buf), pr)
+      setStocData(data)
+      const m = {}
+      data.rows.forEach(r => { if (r.produsId) m[r._id] = r.produsId })
+      setMappings(m)
+      setMode('preview')
+    } catch(e) { setError(e.message) }
+    setLoading(false)
+  }
+
+  const doImport = async () => {
+    setLoading(true)
+    let count = 0
+    for (const row of stocData.rows) {
+      const pid = mappings[row._id]
+      if (!pid) continue
+      const p = produse.find(p => p.id === pid)
+      if (!p) continue
+      await updateProdus({ ...p, stoc: row.cantitate })
+      count++
+    }
+    setResult(count); setMode('done'); setLoading(false)
+  }
+
+  const reset = () => { setMode('idle'); setStocData(null); setResult(null); setError('') }
+  const matched = Object.values(mappings).filter(Boolean).length
+  const neidentificate = stocData ? stocData.rows.filter(r => !mappings[r._id]).length : 0
+
+  if (mode === 'done') return (
+    <DoneCard title={`Stoc actualizat pentru ${result} produse!`}
+      stats={[['Produse actualizate', result, 'text-emerald-600']]}
+      links={[['/produse', '→ Vezi Produse']]} onReset={reset}/>
+  )
+
+  return (
+    <div className="space-y-4">
+      {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-600 flex items-start gap-2"><AlertCircle size={13} className="shrink-0 mt-0.5"/>{error}</div>}
+
+      {mode === 'idle' && (
+        <>
+          <div className="card p-4 space-y-3">
+            <p className="text-xs font-bold text-slate-600">Cum descarci raportul de stoc din SmartBill:</p>
+            <ol className="text-xs text-slate-500 space-y-1 ml-4 list-decimal">
+              <li>SmartBill → <strong>Gestiune → Rapoarte → Stoc curent</strong></li>
+              <li>Selectează depozitul și perioada → <strong>Export Excel</strong></li>
+            </ol>
+            <InfoBox color="green">Aplicația detectează automat produsele după denumire și actualizează stocul în catalog. Produsele neidentificate pot fi asociate manual.</InfoBox>
+          </div>
+          <DropZone onFile={handleFile} loading={loading} accept=".xlsx,.xls" hint="Raport stoc SmartBill (.xlsx / .xls)"/>
+        </>
+      )}
+
+      {mode === 'preview' && stocData && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              ['Produse în fișier', stocData.rows.length, 'text-slate-900'],
+              ['Identificate automat', matched, 'text-emerald-600'],
+              ['Neidentificate', neidentificate, neidentificate > 0 ? 'text-red-500' : 'text-slate-400'],
+            ].map(([l,v,c]) => (
+              <div key={l} className="card p-3"><p className="text-[10px] font-bold text-slate-400 uppercase">{l}</p><p className={`text-xl font-black mt-1 ${c}`}>{v}</p></div>
+            ))}
+          </div>
+          {neidentificate > 0 && <InfoBox color="amber">Produsele marcate cu roșu nu au fost identificate automat. Selectează manual produsul corespunzător din dropdown sau lasă "— Ignoră —" pentru a sări.</InfoBox>}
+          <div className="card overflow-hidden">
+            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                  <tr>
+                    <th className="table-header text-left px-3 py-2">Denumire SmartBill</th>
+                    <th className="table-header text-right px-3 py-2">Stoc (buc)</th>
+                    <th className="table-header text-left px-3 py-2">Produs Barrano</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stocData.rows.map(row => (
+                    <tr key={row._id} className={`table-row ${!mappings[row._id] ? 'bg-red-50/40' : ''}`}>
+                      <td className="table-cell text-xs font-medium text-slate-800">{row.numeSB}</td>
+                      <td className="table-cell text-right font-mono font-bold text-slate-900">{row.cantitate}</td>
+                      <td className="table-cell">
+                        <select
+                          className={`text-xs border rounded-lg px-2 py-1 w-full ${mappings[row._id] ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-700'}`}
+                          value={mappings[row._id] || ''}
+                          onChange={e => setMappings(m => ({...m, [row._id]: e.target.value || null}))}>
+                          <option value="">— Ignoră —</option>
+                          {[...produse].sort((a,b) => a.numeBarrano.localeCompare(b.numeBarrano)).map(p => (
+                            <option key={p.id} value={p.id}>{p.numeBarrano}</option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button className="btn-secondary" onClick={reset}>← Alt fișier</button>
+            <button className="btn-primary" onClick={doImport} disabled={loading || matched === 0}>
+              {loading ? 'Se actualizează...' : <><CheckCircle size={14}/> Actualizează stoc ({matched} produse)</>}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── IMPORT FUNCTIONS ─────────────────────────────────────────
@@ -961,6 +1114,7 @@ export default function ImportPage() {
     { id:'abonamente', label:'Abonamente',      icon:CreditCard, on:'bg-purple-50 text-purple-700' },
     { id:'chirii',     label:'Chirii',          icon:Building2,  on:'bg-amber-50 text-amber-700' },
     { id:'altele',     label:'Altele',          icon:Package,    on:'bg-slate-100 text-slate-700' },
+    { id:'stocuri',   label:'Stocuri',         icon:FileSpreadsheet, on:'bg-green-50 text-green-700' },
   ]
 
   return (
@@ -1169,6 +1323,13 @@ export default function ImportPage() {
         {tab==='altele' && (
           <div className="space-y-4">
             <SimpleImport categorie="Altele"/>
+          </div>
+        )}
+
+        {/* ═══ STOCURI ═══ */}
+        {tab==='stocuri' && (
+          <div className="space-y-4">
+            <StocImportSection/>
           </div>
         )}
 
