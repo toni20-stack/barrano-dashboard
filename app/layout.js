@@ -1,5 +1,4 @@
 import './globals.css'
-import LoginPage from '../components/LoginPage'
 
 export const metadata = {
   title: 'Barrano — Dashboard',
@@ -10,7 +9,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="ro">
       <body>
-        <LoginPage>{children}</LoginPage>
+        {children}
       </body>
     </html>
   )
