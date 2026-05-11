@@ -179,8 +179,17 @@ export default function CheltuieliPage() {
               <div className="w-2 h-2 rounded-full bg-rose-500" />
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Impozit profit 16%</p>
             </div>
-            <p className="text-base font-bold text-slate-900">{formatRon(impozitProfit)}</p>
-            <p className="text-[10px] text-slate-400">{profitNet > 0 ? `Profit net: ${formatRon(profitNet)}` : 'Profit net negativ'}</p>
+            <p className="text-base font-bold text-rose-600">{formatRon(impozitProfit)}</p>
+            <p className="text-[10px] text-slate-400">{profitNet > 0 ? `din profit ${formatRon(profitNet)}` : 'Profit net negativ'}</p>
+          </div>
+          {/* Card Profit net final după impozit */}
+          <div className="card p-3 border-l-4 border-emerald-500">
+            <div className="flex items-center gap-1.5 mb-1">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Profit net final</p>
+            </div>
+            <p className={`text-base font-bold ${profitNet - impozitProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{formatRon(profitNet - impozitProfit)}</p>
+            <p className="text-[10px] text-slate-400">după impozit 16%</p>
           </div>
         </div>
 
