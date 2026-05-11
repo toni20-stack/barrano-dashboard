@@ -88,6 +88,8 @@ export default function CheltuieliPage() {
   }, 0)
   const venitVanzari = vanzariFiltrate.reduce((s, v) => s + (Number(v.cantitate) || 0) * (Number(v.pretUnitar) || 0), 0)
   const pctMarfa = venitVanzari > 0 ? (costMarfa / venitVanzari) * 100 : 0
+  const profitNet = venitVanzari - costMarfa - total
+  const impozitProfit = profitNet > 0 ? profitNet * 0.16 : 0
 
   // Pie data
   const ABO_PALETTE = ['#8b5cf6','#6366f1','#3b82f6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899']
@@ -148,7 +150,7 @@ export default function CheltuieliPage() {
         </div>
 
         {/* Sumar per categorie */}
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {/* Card Marfă — COGS calculat din vânzări × cost produs */}
           <div className="card p-3 border-l-4 border-cyan-500">
             <div className="flex items-center gap-1.5 mb-1">
@@ -171,6 +173,15 @@ export default function CheltuieliPage() {
               </div>
             )
           })}
+          {/* Card Impozit profit 16% */}
+          <div className="card p-3 border-l-4 border-rose-500">
+            <div className="flex items-center gap-1.5 mb-1">
+              <div className="w-2 h-2 rounded-full bg-rose-500" />
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Impozit profit 16%</p>
+            </div>
+            <p className="text-base font-bold text-slate-900">{formatRon(impozitProfit)}</p>
+            <p className="text-[10px] text-slate-400">{profitNet > 0 ? `Profit net: ${formatRon(profitNet)}` : 'Profit net negativ'}</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
