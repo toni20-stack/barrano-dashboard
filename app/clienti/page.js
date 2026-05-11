@@ -288,8 +288,8 @@ export default function ClientiPage() {
 
                 {topOraseStorno.length > 0 && (
                   <div className="card p-5">
-                    <p className="text-sm font-bold text-slate-800 mb-1">Top orașe cu cele mai multe retururi</p>
-                    <p className="text-[10px] text-slate-400 mb-4">câmpul „oraș" din SmartBill = numele clientului</p>
+                    <p className="text-sm font-bold text-slate-800 mb-1">Top clienți cu cele mai multe retururi</p>
+                    <p className="text-[10px] text-slate-400 mb-4">din câmpul „nume client" SmartBill</p>
                     <ResponsiveContainer width="100%" height={260}>
                       <BarChart data={topOraseStorno} margin={{top:5,right:20,left:10,bottom:50}}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#fef2f2" />
