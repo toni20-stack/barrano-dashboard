@@ -38,9 +38,10 @@ export default function AnalizaPage() {
   // ── PERFORMANȚĂ ──────────────────────────────────────────
   const produsStats = produse.map((p, i) => {
     const vs = filtered.filter(v => v.produsId === p.id && !v.isStorno)
-    const venit  = vs.reduce((s,v) => s + calcVanzareProfit(v, produse).venit, 0)
-    const profit = vs.reduce((s,v) => s + calcVanzareProfit(v, produse).profit, 0)
-    const comision = vs.reduce((s,v) => s + calcVanzareProfit(v, produse).comision, 0)
+    const opts = { applyProductComision: true }
+    const venit  = vs.reduce((s,v) => s + calcVanzareProfit(v, produse, opts).venit, 0)
+    const profit = vs.reduce((s,v) => s + calcVanzareProfit(v, produse, opts).profit, 0)
+    const comision = vs.reduce((s,v) => s + calcVanzareProfit(v, produse, opts).comision, 0)
     const qty    = vs.reduce((s,v) => s + Number(v.cantitate), 0)
     const marja  = venit > 0 ? (profit / venit) * 100 : 0
     const costUnic = calcCostTotal(p)
@@ -260,12 +261,13 @@ export default function AnalizaPage() {
                       <div key={p.id} className="bg-slate-50 rounded-xl p-4">
                         <p className="text-xs font-bold text-slate-700 mb-3 leading-tight">{p.numeBarrano}</p>
                         {[
-                          {lbl:'Achiziție', val:p.costAchizitie, color:'#f97316'},
-                          {lbl:'Transport', val:p.transport,     color:'#3b82f6'},
-                          {lbl:'Taxe vamale', val:p.taxeVamale,  color:'#8b5cf6'},
-                          {lbl:'Ambalaj', val:p.ambalaj,         color:'#f59e0b'},
+                          p.costAchizitieNIR > 0
+                            ? {lbl:'Cost NIR', val:p.costAchizitieNIR, color:'#f97316'}
+                            : {lbl:'Achiziție', val:(Number(p.costAchizitie)||0)+(Number(p.transport)||0)+(Number(p.taxeVamale)||0), color:'#f97316'},
+                          {lbl:'Ambalaj', val:p.ambalaj, color:'#f59e0b'},
                           ...(p.componente||[]).map(c=>({lbl:c.nume||'—', val:c.suma, color:'#10b981'})),
-                        ].filter(r=>Number(r.val)>0).map((r,i) => (
+                          p.comisionEmag > 0 ? {lbl:`Com. eMAG ${p.comisionEmag}%`, val:(Number(p.pretVanzare)||0)*p.comisionEmag/100, color:'#ef4444'} : null,
+                        ].filter(r=>r && Number(r.val)>0).map((r,i) => (
                           <div key={i} className="mb-2">
                             <div className="flex justify-between text-[10px] mb-0.5">
                               <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full" style={{backgroundColor:r.color}}/><span className="text-slate-500">{r.lbl}</span></div>

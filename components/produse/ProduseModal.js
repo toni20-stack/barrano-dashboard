@@ -12,6 +12,7 @@ const EMPTY = {
   ambalaj: '',
   componente: [],
   pretVanzare: '',
+  comisionEmag: '',
   createdAt: new Date().toISOString().slice(0, 10),
 }
 
@@ -54,8 +55,11 @@ export default function ProduseModal({ open, onClose, onSave, produs, produse = 
     componente: form.componente.map(c => ({ ...c, suma: Number(c.suma) || 0 }))
   })
   const pretVanzare = Number(form.pretVanzare) || 0
+  const comisionVal = pretVanzare * (Number(form.comisionEmag) || 0) / 100
   const profit = pretVanzare - costTotal
+  const profitNet = pretVanzare - costTotal - comisionVal
   const marja = pretVanzare > 0 ? (profit / pretVanzare) * 100 : 0
+  const marjaNet = pretVanzare > 0 ? (profitNet / pretVanzare) * 100 : 0
 
   const alteProduse = produse
     .filter(p => p.id !== produs?.id)
@@ -69,11 +73,13 @@ export default function ProduseModal({ open, onClose, onSave, produs, produse = 
       costAchizitieNIR: Number(form.costAchizitieNIR) || 0,
       ambalaj: Number(form.ambalaj) || 0,
       pretVanzare: Number(form.pretVanzare) || 0,
+      comisionEmag: Number(form.comisionEmag) || 0,
       componente: form.componente.map(c => ({ ...c, suma: Number(c.suma) || 0 }))
     }
     const costData = {
       costAchizitieNIR: saved.costAchizitieNIR,
       ambalaj: saved.ambalaj,
+      comisionEmag: saved.comisionEmag,
       componente: saved.componente,
     }
     onSave(saved, bulkIds, costData)
@@ -99,12 +105,15 @@ export default function ProduseModal({ open, onClose, onSave, produs, produse = 
         {/* Costuri */}
         <div>
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Componente cost (RON)</p>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <Field label="Cost achiziție NIR">
               <input className="input" type="number" step="0.01" value={form.costAchizitieNIR} onChange={e => set('costAchizitieNIR', e.target.value)} placeholder="0.00" />
             </Field>
             <Field label="Ambalaj">
               <input className="input" type="number" step="0.01" value={form.ambalaj} onChange={e => set('ambalaj', e.target.value)} placeholder="0.00" />
+            </Field>
+            <Field label="Comision eMAG (%)">
+              <input className="input" type="number" step="0.1" min="0" max="100" value={form.comisionEmag} onChange={e => set('comisionEmag', e.target.value)} placeholder="ex: 18.5" />
             </Field>
           </div>
         </div>
@@ -142,19 +151,34 @@ export default function ProduseModal({ open, onClose, onSave, produs, produse = 
                 <input className="input" type="number" step="0.01" value={form.pretVanzare} onChange={e => set('pretVanzare', e.target.value)} placeholder="0.00" />
               </Field>
             </div>
-            <div className="flex gap-6 mt-5">
+            <div className="flex gap-5 mt-5 flex-wrap">
               <div className="text-center">
                 <p className="text-[10px] text-slate-500 font-semibold uppercase">Cost total</p>
                 <p className="text-lg font-bold text-slate-900">{formatRon(costTotal)}</p>
               </div>
               <div className="text-center">
-                <p className="text-[10px] text-slate-500 font-semibold uppercase">Profit / buc</p>
+                <p className="text-[10px] text-slate-500 font-semibold uppercase">Profit brut</p>
                 <p className={`text-lg font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{formatRon(profit)}</p>
               </div>
               <div className="text-center">
-                <p className="text-[10px] text-slate-500 font-semibold uppercase">Marjă</p>
+                <p className="text-[10px] text-slate-500 font-semibold uppercase">Marjă brută</p>
                 <p className={`text-lg font-bold ${marja >= 20 ? 'text-emerald-600' : marja >= 10 ? 'text-amber-500' : 'text-red-500'}`}>{formatPct(marja)}</p>
               </div>
+              {Number(form.comisionEmag) > 0 && <>
+                <div className="w-px bg-slate-200 self-stretch" />
+                <div className="text-center">
+                  <p className="text-[10px] text-slate-500 font-semibold uppercase">Com. eMAG</p>
+                  <p className="text-lg font-bold text-orange-500">-{formatRon(comisionVal)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] text-slate-500 font-semibold uppercase">Profit net eMAG</p>
+                  <p className={`text-lg font-bold ${profitNet >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{formatRon(profitNet)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] text-slate-500 font-semibold uppercase">Marjă netă</p>
+                  <p className={`text-lg font-bold ${marjaNet >= 20 ? 'text-emerald-600' : marjaNet >= 10 ? 'text-amber-500' : 'text-red-500'}`}>{formatPct(marjaNet)}</p>
+                </div>
+              </>}
             </div>
           </div>
         </div>
