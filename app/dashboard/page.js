@@ -90,7 +90,9 @@ export default function DashboardPage() {
   const totalProfit = useMemo(() => filteredV.reduce((s,v) => { const c=profitCache.get(v.id); return s+c.venit-c.cost }, 0), [filteredV, profitCache])
   const totalChelt = filteredC.reduce((s,c) => s + (c.isNegativ ? -Number(c.suma) : Number(c.suma)), 0)
   const profitNet = totalProfit - totalChelt
-  const marjaGlobala = totalVenit > 0 ? (profitNet/totalVenit)*100 : 0
+  const impozitProfit = profitNet > 0 ? profitNet * 0.16 : 0
+  const profitNetFinal = profitNet - impozitProfit
+  const marjaGlobala = totalVenit > 0 ? (profitNetFinal/totalVenit)*100 : 0
 
   const luniMap = {}
   filteredV.forEach(v => {
@@ -169,7 +171,7 @@ export default function DashboardPage() {
           <KPICard label="Venit brut" value={formatRon(totalVenit)} icon={Banknote} color="beige" sub={`${filteredV.length} tranzacții`}/>
           <KPICard label="Marjă brută" value={formatRon(totalProfit)} icon={TrendingUp} color="green" sub={totalVenit > 0 ? `${((totalProfit/totalVenit)*100).toFixed(1)}% din venit` : '—'}/>
           <KPICard label="Cheltuieli" value={formatRon(totalChelt)} icon={ShoppingCart} color="beige" sub={`${filteredC.length} înreg. · ${totalVenit > 0 ? ((totalChelt/totalVenit)*100).toFixed(1) : 0}% din venit`}/>
-          <KPICard label="Profit net final" value={formatRon(profitNet)} icon={Percent} color={profitNet>=0?'green':'red'} sub={`Marjă ${marjaGlobala.toFixed(1)}%`}/>
+          <KPICard label="Profit net final" value={formatRon(profitNetFinal)} icon={Percent} color={profitNetFinal>=0?'green':'red'} sub={`Marjă ${marjaGlobala.toFixed(1)}% · impozit ${formatRon(impozitProfit)}`}/>
         </div>
 
         {/* Linie */}
